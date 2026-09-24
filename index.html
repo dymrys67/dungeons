@@ -288,6 +288,27 @@
   .floor-cell:hover{border-color:var(--accent); background:#2a2154;}
   .floor-cell.boss{color:var(--red); border-color:#5a2f42;}
   .floor-cell.cur{border-color:var(--gold); color:var(--gold);}
+  /* ---- Online layer: auth gate + account bar ---- */
+  #authGate{
+    position:fixed; inset:0; z-index:9999; display:none;
+    align-items:center; justify-content:center; padding:20px;
+    background:radial-gradient(1200px 800px at 50% -10%, #1c1740, var(--bg));
+  }
+  #authGate .ag-card{
+    width:100%; max-width:380px; text-align:center;
+    background:var(--panel); border:1px solid var(--border); border-radius:18px;
+    padding:32px 26px; box-shadow:0 24px 70px -20px rgba(0,0,0,.7);
+  }
+  #authGate .ag-title{ font-size:26px; font-weight:900; letter-spacing:.02em; }
+  #authGate .ag-sub{ color:var(--muted); margin:6px 0 24px; font-size:14px; }
+  #authGate .btn{ width:100%; margin:8px 0; }
+  #authGate .ag-note{ color:var(--muted); font-size:12px; margin-top:16px; line-height:1.5; }
+  #acctBar{
+    display:none; align-items:center; justify-content:space-between; gap:10px;
+    margin-bottom:14px; padding:8px 12px;
+    background:var(--panel); border:1px solid var(--border); border-radius:12px;
+  }
+  #acctBar .ab-user{ font-weight:700; font-size:14px; }
 </style>
 </head>
 <body>
@@ -554,7 +575,7 @@
    DUNGEON LEGENDS  —  single-file offline HTML5 game
    ========================================================================== */
 
-const SAVE_KEY = "dungeon_legends_save_v1";
+const SAVE_KEY = "dungeon_legends_save_v2";   // v2 = hard reset for the online launch (old v1 saves are ignored)
 
 /* ---------- Default question deck (works out of the box) ---------- */
 const DEFAULT_DECK = [
@@ -739,26 +760,28 @@ function derived(){
    ========================================================================== */
 function save(){
   try{ localStorage.setItem(SAVE_KEY, JSON.stringify({s:S, deck})); }catch(e){}
+  // When signed in, also push to the cloud (debounced + throttled server-side).
+  if(window.Online && Online.mode==='online') Online.saveCloudDebounced();
+}
+// Merge a saved blob ({s, deck}) into the live game state. Shared by local load() and cloud load.
+function hydrateSave(p){
+  S = Object.assign(freshState(), (p&&p.s)||{});
+  S.base = Object.assign(freshState().base, S.base||{});
+  S.upgrades = Object.assign(freshState().upgrades, S.upgrades||{});
+  S.equipped = Object.assign({weapon:null,armor:null,helmet:null,boots:null,accessory:null,trinket:null}, S.equipped||{});
+  S.talents = Object.assign({}, S.talents||{});
+  S.qstats = Object.assign({}, S.qstats||{});
+  S.settings = Object.assign({scrambleAnswers:false}, S.settings||{});
+  if(!Array.isArray(S.loadout) || !S.loadout.length) S.loadout = ["strike","slash","fireball","heal"];
+  if(typeof S.level!=="number") S.level=1;
+  if(typeof S.xp!=="number") S.xp=0;
+  if(typeof S.skillPoints!=="number") S.skillPoints=0;
+  deck = (p && p.deck && p.deck.length) ? p.deck : DEFAULT_DECK.slice();
 }
 function load(){
   try{
     const raw = localStorage.getItem(SAVE_KEY);
-    if(raw){
-      const p = JSON.parse(raw);
-      S = Object.assign(freshState(), p.s||{});
-      S.base = Object.assign(freshState().base, S.base||{});
-      S.upgrades = Object.assign(freshState().upgrades, S.upgrades||{});
-      S.equipped = Object.assign({weapon:null,armor:null,helmet:null,boots:null,accessory:null,trinket:null}, S.equipped||{});
-      S.talents = Object.assign({}, S.talents||{});
-      S.qstats = Object.assign({}, S.qstats||{});
-      S.settings = Object.assign({scrambleAnswers:false}, S.settings||{});
-      if(!Array.isArray(S.loadout) || !S.loadout.length) S.loadout = ["strike","slash","fireball","heal"];
-      if(typeof S.level!=="number") S.level=1;
-      if(typeof S.xp!=="number") S.xp=0;
-      if(typeof S.skillPoints!=="number") S.skillPoints=0;
-      deck = (p.deck && p.deck.length) ? p.deck : DEFAULT_DECK.slice();
-      return;
-    }
+    if(raw){ hydrateSave(JSON.parse(raw)); return; }
   }catch(e){}
   S = freshState();
   deck = DEFAULT_DECK.slice();
@@ -1017,7 +1040,7 @@ function healingRoom(floor){
 }
 function advanceFloor(floor){
   const next = floor+1;
-  if(next > S.bestFloor) S.bestFloor = next;
+  if(next > S.bestFloor){ S.bestFloor = next; if(window.Online && Online.mode==='online') Online.submitScore(S.bestFloor); }
   save();
   beginFloor(next);
 }
@@ -2704,10 +2727,237 @@ function roundRect(x,y,w,h,r){
 /* ==========================================================================
    BOOT
    ========================================================================== */
-load();
-renderHub();
-updateDeckInfo();
-requestAnimationFrame(loop);
+// Boot the game once a mode (online/offline) has been chosen and S/deck are populated.
+let __loopStarted = false;
+function bootGame(){
+  renderHub();
+  updateDeckInfo();
+  if(!__loopStarted){ __loopStarted = true; requestAnimationFrame(loop); }
+}
+</script>
+
+<!-- ===================== ONLINE LAYER (accounts, cloud save, leaderboard, admin) ===================== -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function(){
+  // ---- CONFIG: paste your Supabase project values here (both are safe to be public) ----
+  const SUPA_URL  = "https://YOUR_PROJECT_REF.supabase.co";
+  const SUPA_ANON = "YOUR_SUPABASE_ANON_KEY";
+  const CONFIGURED = SUPA_URL.indexOf("YOUR_PROJECT_REF")===-1 && SUPA_ANON.indexOf("YOUR_SUPABASE_ANON_KEY")===-1;
+
+  const Online = {
+    sb:null, session:null, profile:null, mode:null, _saveTimer:null, _lastScore:0,
+
+    async init(){
+      injectUI();
+      if(CONFIGURED && window.supabase){
+        try{
+          this.sb = window.supabase.createClient(SUPA_URL, SUPA_ANON);
+          const { data:{ session } } = await this.sb.auth.getSession();
+          if(session){ await this.enterOnline(session); return; }
+        }catch(e){ console.warn("Supabase init failed", e); }
+      }
+      showGate(true);
+      if(!CONFIGURED){ setGateNote("Online isn't configured yet — Play Offline works."); }
+    },
+
+    async signIn(){
+      if(!this.sb){ setGateNote("Online isn't set up yet."); return; }
+      setGateNote("Redirecting to Google…");
+      const redirectTo = location.origin + location.pathname;
+      const { error } = await this.sb.auth.signInWithOAuth({ provider:'google', options:{ redirectTo } });
+      if(error){ setGateNote("Sign-in failed: "+error.message); }
+    },
+
+    playOffline(){
+      this.mode = 'offline';
+      load();
+      try{ localStorage.removeItem("dungeon_legends_save_v1"); }catch(e){}
+      showGate(false); renderAcctBar(); bootGame();
+    },
+
+    async enterOnline(session){
+      this.session = session; this.mode = 'online';
+      const meta = session.user.user_metadata || {};
+      const full = meta.full_name || meta.name || meta.email || "Player";
+      const first = String(full).trim().split(/\s+/)[0] || "Player";
+      try{
+        const { data, error } = await this.sb.rpc('ensure_profile', { p_first_name:first });
+        if(error) throw error;
+        this.profile = Array.isArray(data) ? data[0] : data;
+      }catch(e){ console.warn("ensure_profile failed", e); }
+      await this.loadCloud();
+      try{ localStorage.removeItem("dungeon_legends_save_v1"); }catch(e){}
+      showGate(false); renderAcctBar(); bootGame();
+    },
+
+    async loadCloud(){
+      try{
+        const { data } = await this.sb.from('saves').select('data').eq('user_id', this.session.user.id).maybeSingle();
+        if(data && data.data && data.data.s){ hydrateSave(data.data); }
+        else { S = freshState(); deck = DEFAULT_DECK.slice(); }
+      }catch(e){ console.warn("loadCloud failed", e); S = freshState(); deck = DEFAULT_DECK.slice(); }
+      try{ localStorage.setItem(SAVE_KEY, JSON.stringify({s:S, deck})); }catch(e){}
+    },
+
+    saveCloudDebounced(){ clearTimeout(this._saveTimer); this._saveTimer = setTimeout(()=>this.saveCloud(), 4000); },
+    async saveCloud(){
+      if(this.mode!=='online' || !this.sb) return;
+      try{ await this.sb.rpc('save_game', { p_data:{ s:S, deck } }); }catch(e){ console.warn("saveCloud failed", e); }
+    },
+    async submitScore(floor){
+      if(this.mode!=='online' || !this.sb) return;
+      if(floor<=this._lastScore) return; this._lastScore = floor;
+      try{ await this.sb.rpc('submit_score', { p_floor:floor }); }catch(e){ console.warn("submitScore failed", e); }
+    },
+    async signOut(){ try{ if(this.sb) await this.sb.auth.signOut(); }catch(e){} location.reload(); },
+
+    async fetchLeaderboard(){
+      const { data } = await this.sb.from('profiles').select('username,best_floor').eq('banned',false).order('best_floor',{ascending:false}).limit(50);
+      return data || [];
+    },
+    isAdmin(){ return !!(this.profile && this.profile.is_admin); },
+    isBanned(){ return !!(this.profile && this.profile.banned); },
+
+    // ---- admin ----
+    async adminList(){ const { data } = await this.sb.from('profiles').select('id,username,best_floor,banned,last_active').order('best_floor',{ascending:false}); return data||[]; },
+    async adminBan(id,val){ await this.sb.from('profiles').update({banned:val}).eq('id',id); },
+    async adminResetPlayer(id){ await this.sb.from('saves').delete().eq('user_id',id); await this.sb.from('profiles').update({best_floor:0}).eq('id',id); },
+    async adminWipeItems(id){
+      const { data } = await this.sb.from('saves').select('data').eq('user_id',id).maybeSingle();
+      if(data && data.data && data.data.s){
+        const b = data.data;
+        b.s.inventory = [];
+        b.s.equipped = {weapon:null,armor:null,helmet:null,boots:null,accessory:null,trinket:null};
+        await this.sb.from('saves').update({data:b}).eq('user_id',id);
+      }
+    },
+  };
+  window.Online = Online;
+
+  // ---------- UI injection ----------
+  function injectUI(){
+    // Auth gate overlay
+    const gate = document.createElement('div');
+    gate.id = 'authGate';
+    gate.innerHTML =
+      '<div class="ag-card">'
+      + '<div class="ag-title">⚔️ DUNGEON LEGENDS ⚔️</div>'
+      + '<div class="ag-sub">Study to survive. Climb the leaderboard.</div>'
+      + '<button class="btn gold" id="agGoogle">🔵 Sign in with Google</button>'
+      + '<button class="btn ghost" id="agOffline">👻 Play Offline</button>'
+      + '<div class="ag-note" id="agNote">Sign in to save your progress and compete. Offline mode is local-only.</div>'
+      + '</div>';
+    document.body.appendChild(gate);
+    document.getElementById('agGoogle').onclick = ()=>Online.signIn();
+    document.getElementById('agOffline').onclick = ()=>Online.playOffline();
+
+    // Account bar (top of hub)
+    const bar = document.createElement('div');
+    bar.id = 'acctBar'; bar.style.display='none';
+    const hub = document.getElementById('hub');
+    hub.insertBefore(bar, hub.firstChild);
+
+    // Extra hub buttons (leaderboard / admin) appended to the button group
+    const btns = document.querySelector('#hub .hubbtns');
+    if(btns){
+      const lb = document.createElement('button');
+      lb.className='btn ghost'; lb.id='hubLbBtn'; lb.textContent='🏆 Leaderboard';
+      lb.style.display='none';
+      lb.onclick=()=>{ showScreen('leaderboard'); renderLeaderboard(); };
+      btns.appendChild(lb);
+      const ad = document.createElement('button');
+      ad.className='btn ghost'; ad.id='hubAdminBtn'; ad.textContent='🛠 Admin';
+      ad.style.display='none';
+      ad.onclick=()=>{ showScreen('admin'); renderAdmin(); };
+      btns.appendChild(ad);
+    }
+
+    // Leaderboard screen
+    const lbScreen = document.createElement('div');
+    lbScreen.className='screen'; lbScreen.id='leaderboard';
+    lbScreen.innerHTML = '<h1>🏆 Leaderboard</h1><div class="sub">Deepest floor reached</div>'
+      + '<div id="lbList" class="hubcard" style="margin-top:14px">Loading…</div>'
+      + '<button class="btn ghost" style="margin-top:14px" onclick="backToHub()">← Back</button>';
+    document.getElementById('game').appendChild(lbScreen);
+
+    // Admin screen
+    const adScreen = document.createElement('div');
+    adScreen.className='screen'; adScreen.id='admin';
+    adScreen.innerHTML = '<h1>🛠 Admin</h1><div class="sub">Moderation — visible only to you</div>'
+      + '<div id="adList" class="hubcard" style="margin-top:14px">Loading…</div>'
+      + '<button class="btn ghost" style="margin-top:14px" onclick="backToHub()">← Back</button>';
+    document.getElementById('game').appendChild(adScreen);
+  }
+
+  function showGate(show){ const g=document.getElementById('authGate'); if(g) g.style.display = show ? 'flex' : 'none'; }
+  function setGateNote(t){ const n=document.getElementById('agNote'); if(n) n.textContent = t; }
+
+  window.renderAcctBar = function(){
+    const bar = document.getElementById('acctBar'); if(!bar) return;
+    bar.style.display='flex';
+    if(Online.mode==='online' && Online.profile){
+      const banned = Online.isBanned() ? ' <span style="color:var(--red)">(banned)</span>' : '';
+      bar.innerHTML = '<span class="ab-user">👤 '+escapeHtml(Online.profile.username)+banned+'</span>'
+        + '<button class="btn ghost sm" onclick="Online.signOut()">Sign out</button>';
+    } else {
+      bar.innerHTML = '<span class="ab-user">👻 Playing offline</span>'
+        + '<button class="btn gold sm" onclick="Online.signIn()">Sign in</button>';
+    }
+    const lb=document.getElementById('hubLbBtn'); if(lb) lb.style.display = (Online.mode==='online')?'':'none';
+    const ad=document.getElementById('hubAdminBtn'); if(ad) ad.style.display = Online.isAdmin()?'':'none';
+  };
+
+  window.renderLeaderboard = async function(){
+    const el=document.getElementById('lbList'); el.innerHTML='Loading…';
+    try{
+      const rows = await Online.fetchLeaderboard();
+      if(!rows.length){ el.innerHTML='<div class="hint">No scores yet — be the first!</div>'; return; }
+      const me = Online.profile && Online.profile.username;
+      el.innerHTML = rows.map((r,i)=>{
+        const mine = r.username===me ? ' style="color:var(--gold);font-weight:800"' : '';
+        return '<div class="statrow"'+mine+'><span>'+(i+1)+'. '+escapeHtml(r.username)+'</span><b>Floor '+r.best_floor+'</b></div>';
+      }).join('');
+    }catch(e){ el.innerHTML='<div class="hint">Couldn\'t load the leaderboard.</div>'; }
+  };
+
+  window.renderAdmin = async function(){
+    const el=document.getElementById('adList'); el.innerHTML='Loading…';
+    if(!Online.isAdmin()){ el.innerHTML='<div class="hint">Not authorized.</div>'; return; }
+    try{
+      const rows = await Online.adminList();
+      if(!rows.length){ el.innerHTML='<div class="hint">No players yet.</div>'; return; }
+      el.innerHTML = rows.map(r=>{
+        const b = r.banned;
+        return '<div class="ad-row" style="border-bottom:1px solid var(--border);padding:8px 0">'
+          + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">'
+          + '<b>'+escapeHtml(r.username)+'</b><span class="hint">Floor '+r.best_floor+(b?' · BANNED':'')+'</span></div>'
+          + '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">'
+          + '<button class="btn ghost sm" onclick="adminAction(\''+r.id+'\',\''+(b?'unban':'ban')+'\')">'+(b?'Unban':'Ban')+'</button>'
+          + '<button class="btn ghost sm" onclick="adminAction(\''+r.id+'\',\'wipe\')">Wipe items</button>'
+          + '<button class="btn red sm" onclick="adminAction(\''+r.id+'\',\'reset\')">Reset player</button>'
+          + '</div></div>';
+      }).join('');
+    }catch(e){ el.innerHTML='<div class="hint">Couldn\'t load players.</div>'; }
+  };
+
+  window.adminAction = async function(id, act){
+    try{
+      if(act==='ban') await Online.adminBan(id,true);
+      else if(act==='unban') await Online.adminBan(id,false);
+      else if(act==='wipe'){ if(!confirm('Wipe this player\'s items?')) return; await Online.adminWipeItems(id); }
+      else if(act==='reset'){ if(!confirm('Reset this player to zero? This cannot be undone.')) return; await Online.adminResetPlayer(id); }
+      if(window.toast) toast('Done.');
+      renderAdmin();
+    }catch(e){ if(window.toast) toast('Action failed.'); }
+  };
+
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  // Kick things off once the DOM + game script are ready.
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', ()=>Online.init());
+  else Online.init();
+})();
 </script>
 </body>
 </html>
