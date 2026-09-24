@@ -1,0 +1,2713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Dungeon Legends</title>
+<style>
+  :root{
+    --bg:#0d0b1a; --panel:#191430; --panel2:#221a45; --ink:#e8e4ff; --muted:#9a92c4;
+    --gold:#ffcb3d; --red:#ff5468; --green:#4dffa0; --blue:#4db8ff; --purple:#c77dff;
+    --grey:#a7a7bd; --border:#3a2f66; --accent:#7c5cff;
+    --common:#9aa0b5; --uncommon:#4dff88; --rare:#4db8ff; --epic:#c77dff; --legendary:#ffcb3d; --mythic:#ff5e7a;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0; height:100%;}
+  body{
+    background:radial-gradient(1200px 800px at 50% -10%, #1c1740, var(--bg));
+    color:var(--ink);
+    font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden; touch-action:manipulation;
+  }
+  #game{
+    width:min(100vw,900px); height:min(100vh,720px);
+    background:var(--panel);
+    border:2px solid var(--border);
+    box-shadow:0 0 60px rgba(124,92,255,.25), inset 0 0 60px rgba(0,0,0,.4);
+    display:flex; flex-direction:column; position:relative; overflow:hidden;
+  }
+  .screen{position:absolute; inset:0; display:none; flex-direction:column;}
+  .screen.active{display:flex;}
+
+  /* ===== Top HUD ===== */
+  #topbar{
+    display:flex; align-items:center; gap:10px; padding:8px 12px;
+    background:linear-gradient(180deg,#241c4a,#191430);
+    border-bottom:2px solid var(--border); flex-shrink:0; z-index:5;
+  }
+  #topbar{flex-wrap:wrap; row-gap:6px;}
+  #topbar .logo{font-weight:800; letter-spacing:1px; color:var(--gold);
+    text-shadow:0 0 10px rgba(255,203,61,.5); font-size:15px;}
+  #topbar .spacer{flex:1;}
+  .pill{background:var(--panel2); border:1px solid var(--border); border-radius:20px;
+    padding:4px 10px; font-size:12px; font-weight:700; display:flex; align-items:center; gap:5px; white-space:nowrap;}
+  .pill.gold{color:var(--gold);}
+  .pill.floor{color:var(--blue);}
+  .pill.biome{color:var(--ink);}
+  .pill.lvl{color:var(--purple);}
+  .pill.boons{color:var(--gold); cursor:pointer;}
+  .pill.boons:hover{border-color:var(--accent);}
+  /* XP strip under the top bar */
+  #xpstrip{height:16px; background:#0d0b1a; border-bottom:2px solid var(--border);
+    position:relative; flex-shrink:0; overflow:hidden;}
+  #xpstrip > #xpfill{height:100%; width:0%;
+    background:linear-gradient(90deg,#7c5cff,#c77dff); transition:width .3s ease;}
+  #xplabel{position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-size:10px; font-weight:800; letter-spacing:1px; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.6);}
+
+  /* ===== Canvas ===== */
+  #canvasWrap{flex:1; position:relative; min-height:0;}
+  canvas{width:100%; height:100%; display:block; image-rendering:pixelated;
+    background:linear-gradient(180deg,#0a0818 0%, #14102b 60%, #1a1330 100%);}
+
+  /* ===== Action bar ===== */
+  #actionbar{display:grid; grid-template-columns:repeat(auto-fit,minmax(72px,1fr)); gap:7px;
+    padding:10px 12px; background:#14102b; border-top:2px solid var(--border); flex-shrink:0;}
+  .action .cost.free{color:var(--muted);}
+  .action{
+    background:linear-gradient(180deg,#2a2154,#1d1640); border:2px solid var(--border);
+    border-radius:12px; padding:10px 6px 8px; cursor:pointer; text-align:center;
+    transition:transform .08s, box-shadow .15s, border-color .15s; user-select:none; position:relative;
+  }
+  .action:active{transform:translateY(2px) scale(.98);}
+  .action:hover{border-color:var(--accent); box-shadow:0 0 16px rgba(124,92,255,.4);}
+  .action.disabled{opacity:.4; pointer-events:none; filter:grayscale(.6);}
+  .action .icon{font-size:22px; line-height:1;}
+  .action .name{font-size:12px; font-weight:800; margin-top:4px;}
+  .action .cost{font-size:11px; color:var(--blue); margin-top:2px; font-weight:700;}
+  .action .cost.free{color:var(--muted);}
+
+  /* ===== Buttons ===== */
+  .btn{background:linear-gradient(180deg,#7c5cff,#5a3fd6); color:#fff; border:none;
+    border-radius:10px; padding:12px 18px; font-weight:800; font-size:15px; cursor:pointer;
+    box-shadow:0 4px 0 #3d2a9e; transition:transform .06s; letter-spacing:.5px;}
+  .btn:active{transform:translateY(3px); box-shadow:0 1px 0 #3d2a9e;}
+  .btn.sm{padding:8px 14px; font-size:13px; box-shadow:0 3px 0 #3d2a9e;}
+  .btn.ghost{background:var(--panel2); box-shadow:0 4px 0 #241c4a; border:1px solid var(--border);}
+  .btn.ghost:active{box-shadow:0 1px 0 #241c4a;}
+  .btn.gold{background:linear-gradient(180deg,#ffcb3d,#e0a400); color:#3a2600; box-shadow:0 4px 0 #a67800;}
+  .btn.gold:active{box-shadow:0 1px 0 #a67800;}
+  .btn.red{background:linear-gradient(180deg,#ff5468,#d62f45); box-shadow:0 4px 0 #8f1f30;}
+  .btn:disabled{opacity:.4; pointer-events:none;}
+
+  /* ===== HUB ===== */
+  #hub{background:radial-gradient(900px 600px at 50% 0%, #241c4a, var(--panel));
+    padding:20px; align-items:center; justify-content:flex-start; overflow-y:auto;}
+  #hub h1{font-size:34px; margin:14px 0 2px; color:var(--gold);
+    text-shadow:0 0 20px rgba(255,203,61,.5); letter-spacing:2px;}
+  #hub .sub{color:var(--muted); margin-bottom:18px; font-size:13px;}
+  .hubcard{width:100%; max-width:520px; background:var(--panel2); border:2px solid var(--border);
+    border-radius:14px; padding:16px; margin-bottom:14px;}
+  .hubcard h3{margin:0 0 10px; font-size:15px; color:var(--ink); display:flex; align-items:center; gap:8px;}
+  .statgrid{display:grid; grid-template-columns:repeat(2,1fr); gap:8px;}
+  .statrow{display:flex; justify-content:space-between; background:#191430; border:1px solid var(--border);
+    border-radius:8px; padding:7px 10px; font-size:13px;}
+  .statrow b{color:var(--gold);}
+  .hubbtns{display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; width:100%; max-width:520px;}
+
+  /* ===== Modal ===== */
+  .overlay{position:absolute; inset:0; background:rgba(6,4,16,.82); backdrop-filter:blur(3px);
+    display:none; align-items:flex-start; justify-content:center; z-index:50; padding:16px; overflow-y:auto;}
+  .overlay.active{display:flex;}
+  .modal{background:linear-gradient(180deg,#241c4a,#1a1436); border:2px solid var(--accent);
+    border-radius:16px; padding:20px; width:100%; max-width:480px; margin:auto;
+    box-shadow:0 0 50px rgba(124,92,255,.5); animation:pop .18s ease;}
+  @keyframes pop{from{transform:scale(.9); opacity:0;} to{transform:scale(1); opacity:1;}}
+  .modal h2{margin:0 0 4px; font-size:18px;}
+  .modal .qmeta{color:var(--muted); font-size:12px; margin-bottom:12px; display:flex; justify-content:space-between;}
+  .qtext{font-size:20px; font-weight:800; margin-bottom:16px; line-height:1.45; color:#ffffff;
+    text-shadow:0 1px 3px rgba(0,0,0,.55);}
+  .opts{display:grid; gap:9px;}
+  .opt{background:#2e2860; border:2px solid #524490; border-radius:10px; padding:14px 15px;
+    cursor:pointer; font-size:16px; font-weight:700; color:#f7f5ff; transition:.12s; text-align:left;
+    letter-spacing:.2px; line-height:1.3;}
+  .opt:hover{border-color:var(--accent); background:#3a2f78; color:#ffffff;}
+  .opt.correct{border-color:var(--green); background:rgba(77,255,160,.28); color:#eafff4;}
+  .opt.wrong{border-color:var(--red); background:rgba(255,84,104,.28); color:#ffecef;}
+  .opt.dim{opacity:.45;}
+
+  /* timer bar */
+  .timerbar{height:10px; background:#191430; border:1px solid var(--border); border-radius:6px;
+    overflow:hidden; margin-bottom:12px;}
+  .timerbar > div{height:100%; background:linear-gradient(90deg,var(--green),var(--gold),var(--red));
+    width:100%; transition:width .1s linear;}
+  .starrow{display:flex; gap:6px; justify-content:center; font-size:26px; margin:6px 0;}
+
+  /* ===== Inventory / Shop ===== */
+  .fullscreen{background:radial-gradient(900px 600px at 50% 0%, #241c4a, var(--panel));
+    padding:16px; overflow-y:auto;}
+  .fs-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
+  .fs-head h2{margin:0; color:var(--gold); font-size:22px;}
+  .equipslots{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:16px;}
+  @media(max-width:520px){ .equipslots{grid-template-columns:repeat(2,1fr);} }
+  .slot{background:var(--panel2); border:2px dashed var(--border); border-radius:10px; padding:10px; min-height:78px;
+    display:flex; flex-direction:column; justify-content:center; text-align:center;}
+  .slot .lbl{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:1px;}
+  .invgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px;}
+  .item{border:2px solid var(--border); border-radius:10px; padding:10px; background:var(--panel2);
+    cursor:pointer; transition:.12s; position:relative;}
+  .item:hover{transform:translateY(-2px);}
+  .item .iname{font-weight:800; font-size:13px;}
+  .item .itype{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px;}
+  .item .istats{font-size:12px; margin-top:6px; color:var(--green);}
+  .item.equipped::after{content:'EQUIPPED'; position:absolute; top:6px; right:6px; font-size:9px;
+    background:var(--green); color:#04240f; padding:2px 5px; border-radius:4px; font-weight:800;}
+  .rar-common{border-color:var(--common); box-shadow:0 0 10px rgba(154,160,181,.25);}
+  .rar-uncommon{border-color:var(--uncommon); box-shadow:0 0 11px rgba(77,255,136,.30);}
+  .rar-rare{border-color:var(--rare); box-shadow:0 0 12px rgba(77,184,255,.35);}
+  .rar-epic{border-color:var(--epic); box-shadow:0 0 14px rgba(199,125,255,.4);}
+  .rar-legendary{border-color:var(--legendary); box-shadow:0 0 18px rgba(255,203,61,.5);}
+  .rar-mythic{border-color:var(--mythic); box-shadow:0 0 20px rgba(255,94,122,.55);
+    background:linear-gradient(135deg,#2a1a3a,#3a1a2a);}
+  .item .iaffix{font-size:11px; margin-top:5px; color:var(--blue); line-height:1.35;}
+  .item .iaffix span{display:block;}
+  /* loot reveal juice for high rarities */
+  @keyframes lootpulse{0%,100%{box-shadow:0 0 30px rgba(255,203,61,.3);} 50%{box-shadow:0 0 55px rgba(255,203,61,.75);}}
+  @keyframes mythshimmer{0%{filter:hue-rotate(0deg);}100%{filter:hue-rotate(360deg);}}
+  .loot-hi{animation:lootpulse 1.2s ease-in-out infinite;}
+  .loot-myth{animation:mythshimmer 3s linear infinite;}
+  .loot-banner{text-align:center; font-weight:900; letter-spacing:2px; margin:2px 0 8px; font-size:15px;}
+  .rtag{font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:1px;}
+  .shoprow{display:flex; align-items:center; justify-content:space-between; background:var(--panel2);
+    border:1px solid var(--border); border-radius:10px; padding:12px; margin-bottom:10px;}
+  .shoprow .info b{color:var(--gold);}
+  .shoprow .info small{color:var(--muted); display:block; font-size:11px;}
+  textarea{width:100%; background:#0d0b1a; color:var(--ink); border:1px solid var(--border); border-radius:8px;
+    padding:10px; font-family:monospace; font-size:12px; min-height:90px; resize:vertical;}
+  .toast{position:absolute; bottom:78px; left:50%; transform:translateX(-50%); background:#241c4a;
+    border:1px solid var(--accent); border-radius:10px; padding:10px 16px; font-size:13px; font-weight:700;
+    z-index:60; opacity:0; transition:opacity .25s, transform .25s; pointer-events:none; white-space:nowrap;}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(-6px);}
+  .empty{color:var(--muted); font-size:13px; text-align:center; padding:20px;}
+  .banner{text-align:center; padding:8px; font-weight:800; font-size:14px; background:var(--panel2);
+    border-bottom:2px solid var(--border);}
+  .hint{font-size:11px; color:var(--muted); margin-top:6px;}
+  /* Big floor banner on hub */
+  .floorbanner{width:100%; max-width:520px; text-align:center; margin-bottom:16px; position:relative;
+    background:linear-gradient(180deg,#2c2258,#181330); border:2px solid var(--accent);
+    border-radius:16px; padding:14px 14px 12px; box-shadow:0 0 34px rgba(124,92,255,.32); overflow:hidden;}
+  .floorbanner::before{content:''; position:absolute; inset:0;
+    background:radial-gradient(400px 120px at 50% 0%, rgba(255,203,61,.14), transparent);}
+  .fb-label{font-size:11px; letter-spacing:3px; color:var(--muted); font-weight:800; position:relative;}
+  .fb-num{font-size:66px; font-weight:900; color:var(--gold); line-height:1; position:relative;
+    text-shadow:0 0 28px rgba(255,203,61,.55); margin:2px 0 0;}
+  .fb-num small{font-size:20px; color:var(--muted); font-weight:800; letter-spacing:2px; vertical-align:middle; margin-right:4px;}
+  .fb-sub{font-size:12px; color:var(--blue); font-weight:800; position:relative; margin-top:2px;}
+  .fb-boss{color:var(--red)!important;}
+  /* Shrine boon cards */
+  .shrine-grid{display:grid; gap:10px;}
+  .boon-card{background:var(--panel2); border:2px solid var(--border); border-radius:12px; padding:12px 14px;
+    cursor:pointer; text-align:left; transition:.12s; color:var(--ink); font-family:inherit;}
+  .boon-card:hover{border-color:var(--accent); background:#2a2154; transform:translateY(-2px);}
+  .boon-card.risk{border-color:#c9762f;}
+  .boon-card.risk:hover{border-color:var(--gold);}
+  .boon-ico{font-size:26px; float:left; margin-right:12px; line-height:1;}
+  .boon-name{font-weight:800; font-size:15px;}
+  .boon-desc{font-size:12px; color:var(--muted); margin-top:2px;}
+  .boon-warn{font-size:11px; color:var(--gold); font-weight:700; margin-top:6px; clear:both;}
+  /* Talents screen */
+  .talent-cols{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; align-items:start;}
+  .talent-branch{background:var(--panel2); border:2px solid var(--border); border-radius:12px; padding:12px;}
+  .talent-branch h4{margin:0 0 10px; font-size:14px; text-align:center;}
+  .talent-node{background:#191430; border:2px solid var(--border); border-radius:10px; padding:9px 10px; margin-bottom:9px;
+    cursor:pointer; transition:.12s;}
+  .talent-node:hover{border-color:var(--accent);}
+  .talent-node.maxed{border-color:var(--green); opacity:.9; cursor:default;}
+  .talent-node.locked{opacity:.45;}
+  .tn-top{display:flex; justify-content:space-between; align-items:center; gap:6px;}
+  .tn-name{font-weight:800; font-size:13px;}
+  .tn-rank{font-size:11px; color:var(--gold); font-weight:800; white-space:nowrap;}
+  .tn-desc{font-size:11px; color:var(--muted); margin-top:3px;}
+  @media(max-width:560px){ .talent-cols{grid-template-columns:1fr;} }
+  /* See Deck screen */
+  .deck-summary{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:4px;}
+  .ds-tile{background:var(--panel2); border:2px solid var(--border); border-radius:12px; padding:12px; text-align:center;}
+  .ds-tile .big{font-size:26px; font-weight:900; color:var(--gold); line-height:1;}
+  .ds-tile .lbl{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-top:4px;}
+  .qcard{background:var(--panel2); border:2px solid var(--border); border-radius:12px; padding:12px 14px; margin-bottom:10px;}
+  .qcard .qhead{display:flex; justify-content:space-between; align-items:flex-start; gap:10px;}
+  .qcard .qq{font-weight:800; font-size:15px; color:#fff;}
+  .qcard .qnum{font-size:11px; color:var(--muted); font-weight:800; margin-right:6px;}
+  .qcard .qopts{display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:9px;}
+  .qopt{font-size:12px; padding:7px 9px; border-radius:8px; background:#191430; border:1px solid var(--border); color:var(--ink);}
+  .qopt.right{border-color:var(--green); background:rgba(77,255,160,.16); color:#eafff4; font-weight:700;}
+  .qstat{display:flex; gap:12px; align-items:center; white-space:nowrap; font-size:12px; font-weight:800;}
+  .qstat .acc{padding:2px 8px; border-radius:10px;}
+  .acc-good{color:#04240f; background:var(--green);}
+  .acc-mid{color:#3a2600; background:var(--gold);}
+  .acc-bad{color:#fff; background:var(--red);}
+  .acc-none{color:var(--muted); background:#191430; border:1px solid var(--border);}
+  @media(max-width:560px){ .deck-summary{grid-template-columns:1fr 1fr;} .qcard .qopts{grid-template-columns:1fr;} }
+  /* Settings rows */
+  .setting-row{display:flex; align-items:center; gap:12px; background:var(--panel2); border:1px solid var(--border);
+    border-radius:10px; padding:12px 14px;}
+  /* Abilities / loadout */
+  .abil-card{display:flex; align-items:center; gap:12px; background:var(--panel2); border:2px solid var(--border);
+    border-radius:12px; padding:11px 13px; margin-bottom:9px;}
+  .abil-card.equipped{border-color:var(--accent); box-shadow:0 0 14px rgba(124,92,255,.3);}
+  .abil-card.locked{opacity:.5;}
+  .abil-ico{font-size:26px; width:34px; text-align:center;}
+  .abil-info{flex:1;}
+  .abil-name{font-weight:800; font-size:14px;}
+  .abil-name .cost{font-size:11px; color:var(--blue); font-weight:700; margin-left:6px;}
+  .abil-desc{font-size:12px; color:var(--muted); margin-top:2px;}
+  /* Chest opening animation */
+  .chest-stage{display:flex; flex-direction:column; align-items:center; justify-content:center; height:130px; position:relative; margin-bottom:6px;}
+  .chest-rays{position:absolute; width:180px; height:180px; border-radius:50%; opacity:0;
+    background:radial-gradient(circle, rgba(255,203,61,.5), transparent 65%);}
+  .chest-stage.open .chest-rays{animation:rayflash .6s ease-out forwards;}
+  @keyframes rayflash{0%{opacity:0; transform:scale(.4);}40%{opacity:1;}100%{opacity:0; transform:scale(1.5);}}
+  .chestsvg{width:96px; height:84px; position:relative;}
+  .chest-stage.shake .chestsvg{animation:chestshake .5s ease-in-out 2;}
+  @keyframes chestshake{0%,100%{transform:translateX(0) rotate(0);}25%{transform:translateX(-4px) rotate(-4deg);}75%{transform:translateX(4px) rotate(4deg);}}
+  .chest-lid{transform-box:fill-box; transform-origin:bottom center; transition:transform .4s cubic-bezier(.5,-0.4,.5,1);}
+  .chest-stage.open .chest-lid{transform:rotate(-115deg) translateY(-4px);}
+  .loot-reveal{opacity:0; transform:translateY(10px); transition:opacity .45s ease, transform .45s ease;}
+  .loot-reveal.show{opacity:1; transform:none;}
+  /* Room choice cards */
+  .room-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .room-card{background:var(--panel2); border:2px solid var(--border); border-radius:12px; padding:14px 12px;
+    cursor:pointer; text-align:center; color:var(--ink); font-family:inherit; transition:.12s;}
+  .room-card:hover{border-color:var(--accent); transform:translateY(-2px); background:#2a2154;}
+  .room-card.room-elite{border-color:#c9762f;}
+  .room-card.room-elite:hover{border-color:var(--gold);}
+  .room-ico{font-size:30px; line-height:1;}
+  .room-name{font-weight:800; font-size:14px; margin-top:6px;}
+  .room-desc{font-size:11px; color:var(--muted); margin-top:3px; line-height:1.3;}
+  @media(max-width:480px){ .room-grid{grid-template-columns:1fr;} }
+  /* Expert spinner */
+  .expert-wheel{font-size:56px; line-height:1; margin:10px auto 4px; width:70px; height:70px; display:flex; align-items:center; justify-content:center;
+    border-radius:50%; border:3px solid var(--red); box-shadow:0 0 22px rgba(255,84,104,.5);}
+  .expert-wheel.spin{animation:wheelspin 1.3s cubic-bezier(.2,.7,.2,1);}
+  @keyframes wheelspin{0%{transform:rotate(0);}100%{transform:rotate(1440deg);}}
+  /* Floor select grid */
+  .floor-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(52px,1fr)); gap:6px; max-height:230px; overflow-y:auto; padding:2px;}
+  .floor-cell{background:var(--panel2); border:1px solid var(--border); color:var(--ink); border-radius:8px;
+    padding:9px 4px; font-weight:800; font-size:13px; cursor:pointer; transition:.1s;}
+  .floor-cell:hover{border-color:var(--accent); background:#2a2154;}
+  .floor-cell.boss{color:var(--red); border-color:#5a2f42;}
+  .floor-cell.cur{border-color:var(--gold); color:var(--gold);}
+</style>
+</head>
+<body>
+<div id="game">
+
+  <!-- ============ HUB SCREEN ============ -->
+  <div class="screen active" id="hub">
+    <h1>⚔️ DUNGEON LEGENDS ⚔️</h1>
+    <div class="sub">Answer to attack. Study to survive.</div>
+
+    <div class="floorbanner">
+      <div class="fb-label">NEXT RUN BEGINS ON</div>
+      <div class="fb-num"><small>FLOOR</small><span id="hubFloorBig">1</span></div>
+      <div class="fb-sub" id="hubFloorSub">Descend deeper to earn better loot</div>
+    </div>
+
+    <div class="hubcard">
+      <h3>🛡️ Hero Stats <span id="hubLevelTag" style="margin-left:auto; font-size:13px; color:var(--purple); font-weight:800"></span></h3>
+      <div style="margin-bottom:10px">
+        <div id="hubXpBar" style="height:14px; background:#0d0b1a; border:1px solid var(--border); border-radius:7px; overflow:hidden; position:relative">
+          <div id="hubXpFill" style="height:100%; width:0%; background:linear-gradient(90deg,#7c5cff,#c77dff)"></div>
+          <span id="hubXpLabel" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:800; color:#fff"></span>
+        </div>
+      </div>
+      <div class="statgrid" id="hubStats"></div>
+    </div>
+
+    <div class="hubbtns">
+      <button class="btn gold" onclick="enterDungeon()">🏰 Enter Dungeon</button>
+      <button class="btn ghost" onclick="showScreen('talents'); renderTalents()">🌟 Talents<span id="hubTalentDot" style="display:none"> ●</span></button>
+      <button class="btn ghost" onclick="showScreen('loadout'); renderLoadout()">🎯 Abilities</button>
+      <button class="btn ghost" onclick="showScreen('inventory'); renderInventory()">🎒 Inventory</button>
+      <button class="btn ghost" onclick="showScreen('shop'); renderShop()">💰 Upgrade Shop</button>
+      <button class="btn ghost" onclick="showScreen('deckview'); renderDeckView()">📖 See Deck</button>
+      <button class="btn ghost" onclick="openImport()">📥 Import Deck</button>
+      <button class="btn ghost" onclick="openSettings()">⚙️ Settings</button>
+    </div>
+    <div class="hint" id="deckInfo"></div>
+    <div class="hint">Progress: reach Floor <b id="hubBestFloor">1</b> · Deck loaded: <b id="hubDeckCount">10</b> questions</div>
+    <button class="btn ghost sm" style="margin-top:14px" onclick="openSaveMgr()">💾 Download / Import Save</button>
+    <button class="btn ghost sm" style="margin-top:8px" onclick="confirmReset()">🗑️ Reset Save</button>
+  </div>
+
+  <!-- ============ DUNGEON / BATTLE SCREEN ============ -->
+  <div class="screen" id="dungeon">
+    <div id="topbar">
+      <span class="pill biome" id="biomePill">🕯️ Catacombs</span>
+      <span class="pill floor" id="floorPill">Floor 1</span>
+      <span class="spacer"></span>
+      <span class="pill lvl" id="lvlPill">Lv 1</span>
+      <span class="pill" id="expertPill" style="display:none; color:var(--red)">🔥 EXPERT</span>
+      <span class="pill gold" id="goldPill">💰 0</span>
+      <span class="pill boons" id="boonsPill" onclick="showBoonList()" style="display:none">✨ 0</span>
+      <button class="btn ghost sm" onclick="fleeToHub()">Flee</button>
+    </div>
+    <div id="xpstrip"><div id="xpfill"></div><span id="xplabel"></span></div>
+    <div id="canvasWrap">
+      <canvas id="cv"></canvas>
+    </div>
+    <div id="actionbar"><!-- rendered from S.loadout by renderActionBar() --></div>
+  </div>
+
+  <!-- ============ INVENTORY SCREEN ============ -->
+  <div class="screen fullscreen" id="inventory">
+    <div class="fs-head">
+      <h2>🎒 Inventory</h2>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end">
+        <span class="pill gold" id="invGold">💰 0</span>
+        <button class="btn ghost sm" onclick="sellJunk()">🧹 Sell Commons</button>
+        <button class="btn ghost sm" onclick="backToHub()">← Hub</button>
+      </div>
+    </div>
+    <div class="equipslots" id="equipSlots"></div>
+    <h3 style="margin:6px 0 10px; font-size:14px; color:var(--muted)">Backpack</h3>
+    <div class="invgrid" id="invGrid"></div>
+  </div>
+
+  <!-- ============ SHOP SCREEN ============ -->
+  <div class="screen fullscreen" id="shop">
+    <div class="fs-head">
+      <h2>💰 Upgrade Shop</h2>
+      <div>
+        <span class="pill gold" id="shopGold">💰 0</span>
+        <button class="btn ghost sm" onclick="backToHub()">← Hub</button>
+      </div>
+    </div>
+    <div class="banner">Permanent base-stat upgrades. Prices rise each purchase.</div>
+    <div id="shopList" style="margin-top:14px"></div>
+  </div>
+
+  <!-- ============ ABILITIES / LOADOUT SCREEN ============ -->
+  <div class="screen fullscreen" id="loadout">
+    <div class="fs-head">
+      <h2>🎯 Abilities</h2>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end">
+        <span class="pill lvl" id="loadoutCount">0/5 equipped</span>
+        <button class="btn ghost sm" onclick="backToHub()">← Hub</button>
+      </div>
+    </div>
+    <div class="banner">Equip up to 5 abilities to your combat bar. Unlock more by leveling up.</div>
+    <div id="loadoutList" style="margin-top:14px"></div>
+  </div>
+
+  <!-- ============ SEE DECK SCREEN ============ -->
+  <div class="screen fullscreen" id="deckview">
+    <div class="fs-head">
+      <h2>📖 See Deck</h2>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end">
+        <button class="btn ghost sm" onclick="confirmResetStats()">↺ Reset Stats</button>
+        <button class="btn ghost sm" onclick="backToHub()">← Hub</button>
+      </div>
+    </div>
+    <div id="deckSummary"></div>
+    <div id="deckList" style="margin-top:12px"></div>
+  </div>
+
+  <!-- ============ TALENTS SCREEN ============ -->
+  <div class="screen fullscreen" id="talents">
+    <div class="fs-head">
+      <h2>🌟 Talents</h2>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end">
+        <span class="pill lvl" id="talPoints">0 points</span>
+        <button class="btn ghost sm" onclick="respecTalents()">↺ Respec</button>
+        <button class="btn ghost sm" onclick="backToHub()">← Hub</button>
+      </div>
+    </div>
+    <div class="banner">Spend skill points from leveling up. Permanent — kept forever. Respec is free.</div>
+    <div class="talent-cols" id="talentCols" style="margin-top:14px"></div>
+  </div>
+
+  <!-- ============ OVERLAYS ============ -->
+  <div class="overlay" id="qOverlay">
+    <div class="modal">
+      <h2 id="qTitle">Basic Strike</h2>
+      <div class="qmeta"><span id="qSub">Answer correctly to land the hit!</span></div>
+      <div class="qtext" id="qText">Question?</div>
+      <div class="opts" id="qOpts"></div>
+    </div>
+  </div>
+
+  <div class="overlay" id="chestOverlay">
+    <div class="modal">
+      <h2 id="chestTitle">✨ Speed Chest</h2>
+      <div class="qmeta"><span id="chestSub">3 questions · 15 seconds · more correct = more loot!</span>
+        <span id="chestScore">0/3</span></div>
+      <div class="timerbar"><div id="chestTimerFill"></div></div>
+      <div class="qtext" id="chestQText">Get ready…</div>
+      <div class="opts" id="chestOpts"></div>
+    </div>
+  </div>
+
+  <div class="overlay" id="lootOverlay">
+    <div class="modal" style="text-align:center">
+      <h2 id="lootTitle">Chest Opened!</h2>
+      <div class="starrow" id="lootStars">★★★</div>
+      <div id="lootBody" style="margin:12px 0; text-align:left"></div>
+      <button class="btn gold" onclick="closeLoot()">Continue →</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="shrineOverlay">
+    <div class="modal" style="max-width:520px">
+      <h2>🔮 Ancient Shrine</h2>
+      <div class="qmeta"><span>Claim <b>one</b> blessing for this run — it lasts until you leave the dungeon. Boons vanish when you return to the Hub.</span></div>
+      <div id="shrineChoices" class="shrine-grid"></div>
+      <div style="text-align:center; margin-top:12px"><button class="btn ghost sm" onclick="skipShrine()">🚫 No thanks — skip</button></div>
+    </div>
+  </div>
+
+  <div class="overlay" id="importOverlay">
+    <div class="modal">
+      <h2>📥 Import Study Deck</h2>
+      <div class="qmeta"><span>Paste your questions as <b>JSON</b> (recommended) or a <b>DS-</b> code.</span></div>
+      <textarea id="importText" placeholder='Paste JSON like:  [{"q":"...","o":["A","B","C","D"],"a":0}, ...]   — or a DS- code'></textarea>
+      <div class="hint" id="importMsg"></div>
+      <div style="display:flex; gap:8px; margin-top:12px; justify-content:flex-end">
+        <button class="btn ghost sm" onclick="closeImport()">Cancel</button>
+        <button class="btn ghost sm" onclick="loadDefaultDeck(true)">Use Default</button>
+        <button class="btn sm" onclick="doImport()">Load Deck</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="roomOverlay">
+    <div class="modal" style="max-width:560px">
+      <h2 id="roomTitle">Choose Your Path</h2>
+      <div class="qmeta"><span id="roomSub"></span><button class="btn ghost sm" style="padding:2px 10px" onclick="closeMsg(); document.getElementById('roomOverlay').classList.remove('active'); backToHub()">🏰 Hub</button></div>
+      <div id="roomChoices" class="room-grid"></div>
+    </div>
+  </div>
+
+  <div class="overlay" id="expertOverlay">
+    <div class="modal" style="text-align:center; max-width:440px">
+      <h2>🎰 A Strange Portal…</h2>
+      <div class="qmeta" style="justify-content:center"><span>Fortune favors the bold.</span></div>
+      <div id="expertWheel" class="expert-wheel">🔥</div>
+      <div style="font-weight:900; font-size:20px; color:var(--red); margin:6px 0 2px">EXPERT DUNGEON</div>
+      <div class="hint" style="margin-bottom:10px">Tougher foes · <b style="color:var(--gold)">2× gold</b> · <b style="color:var(--gold)">bonus loot</b></div>
+      <div id="expertButtons" style="display:none; gap:8px; justify-content:center">
+        <button class="btn ghost sm" onclick="declineExpert()">No thanks</button>
+        <button class="btn red sm" onclick="acceptExpert()">🔥 Enter Expert</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="floorSelOverlay">
+    <div class="modal">
+      <h2>🏰 Choose Your Floor</h2>
+      <div class="qmeta"><span>Continue your climb, or replay an earlier floor to farm gear &amp; XP.</span></div>
+      <button class="btn gold" style="width:100%; margin-bottom:12px" onclick="closeFloorSel(); startDungeon(S.bestFloor)">⚔️ Continue — Floor <span id="contFloorNum"></span></button>
+      <div class="hint" style="margin-bottom:6px">Or farm an earlier floor:</div>
+      <div id="floorGrid" class="floor-grid"></div>
+      <div style="display:flex; justify-content:flex-end; margin-top:12px"><button class="btn ghost sm" onclick="closeFloorSel()">Cancel</button></div>
+    </div>
+  </div>
+
+  <div class="overlay" id="settingsOverlay">
+    <div class="modal">
+      <h2>⚙️ Settings</h2>
+      <div class="qmeta"><span>These apply to combat and Speed-Chest questions.</span></div>
+      <div class="setting-row">
+        <div style="flex:1"><b>Answer Choices</b><div class="hint" id="scrambleDesc" style="margin-top:3px"></div></div>
+        <button class="btn sm" id="scrambleBtn" onclick="toggleScramble()">…</button>
+      </div>
+      <div style="display:flex; justify-content:flex-end; margin-top:14px">
+        <button class="btn ghost sm" onclick="closeSettings()">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="saveOverlay">
+    <div class="modal">
+      <h2>💾 Save Manager</h2>
+      <div class="qmeta"><span>Back up your progress or move it to another device. Your deck comes with it.</span></div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px">
+        <button class="btn sm" onclick="downloadSave()">⬇️ Download Save File</button>
+        <button class="btn ghost sm" onclick="copySaveCode()">📋 Copy Save Code</button>
+      </div>
+      <div class="hint">To load a save on this device, paste its code below <b>or</b> upload a save file — then Load. This replaces your current progress.</div>
+      <textarea id="saveImportText" placeholder="Paste a DLS- save code here…"></textarea>
+      <div style="margin-top:8px"><input type="file" id="saveFileInput" accept=".txt,.json" style="font-size:12px; color:var(--muted)"></div>
+      <div class="hint" id="saveMsg"></div>
+      <div style="display:flex; gap:8px; margin-top:12px; justify-content:flex-end">
+        <button class="btn ghost sm" onclick="closeSaveMgr()">Cancel</button>
+        <button class="btn sm" onclick="importSaveFromText()">Load Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="msgOverlay">
+    <div class="modal" style="text-align:center">
+      <h2 id="msgTitle">Notice</h2>
+      <div id="msgBody" style="margin:12px 0; line-height:1.5"></div>
+      <div id="msgBtns" style="display:flex; gap:8px; justify-content:center"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+"use strict";
+/* ==========================================================================
+   DUNGEON LEGENDS  —  single-file offline HTML5 game
+   ========================================================================== */
+
+const SAVE_KEY = "dungeon_legends_save_v1";
+
+/* ---------- Default question deck (works out of the box) ---------- */
+const DEFAULT_DECK = [
+  {q:"What is 7 × 8?", o:["54","56","48","64"], a:1},
+  {q:"Capital of France?", o:["Madrid","Rome","Paris","Berlin"], a:2},
+  {q:"Which planet is the Red Planet?", o:["Venus","Mars","Jupiter","Mercury"], a:1},
+  {q:"H2O is the formula for?", o:["Salt","Oxygen","Water","Hydrogen"], a:2},
+  {q:"How many continents are there?", o:["5","6","7","8"], a:2},
+  {q:"What is 12 ÷ 4?", o:["2","3","4","6"], a:1},
+  {q:"Who wrote Romeo and Juliet?", o:["Dickens","Shakespeare","Twain","Poe"], a:1},
+  {q:"Largest ocean on Earth?", o:["Atlantic","Indian","Arctic","Pacific"], a:3},
+  {q:"What gas do plants breathe in?", o:["Oxygen","CO₂","Nitrogen","Helium"], a:1},
+  {q:"What is 9 squared?", o:["18","72","81","99"], a:2},
+];
+
+/* ---------- Game state ---------- */
+let S = null;   // save state (persistent)
+let deck = [];  // active question deck
+
+function freshState(){
+  return {
+    gold: 0,
+    bestFloor: 1,
+    level: 1,
+    xp: 0,
+    skillPoints: 0,
+    talents: {},          // { nodeKey: rank }
+    qstats: {},           // { questionText: {seen, correct} }
+    settings: { scrambleAnswers:false }, // answer-option mode
+    loadout: ["strike","slash","fireball","heal"], // equipped abilities
+
+    base:{ hp:100, mp:50, atk:14, def:6, crit:10 },
+    upgrades:{ hp:0, mp:0, atk:0, def:0 }, // count of purchases
+    equipped:{ weapon:null, armor:null, helmet:null, boots:null, accessory:null, trinket:null },
+    inventory:[],
+    itemSeq: 1,
+  };
+}
+
+/* ==========================================================================
+   BIOMES — every 5 floors is a themed region; 4 flavors cycle forever.
+   ========================================================================== */
+const BIOMES = [
+  { key:"catacombs", name:"The Catacombs", icon:"🕯️", hue:0,   sat:1.0,
+    bg:["#0a0c16","#131a2c","#1a2338"], floor:"#0b1220", accent:"140,170,220",
+    ambient:{color:"rgba(150,170,210,", n:26},
+    roster:["skeleton","bat","ghost","slime"], boss:"The Bone Tyrant" },
+  { key:"overgrowth", name:"The Overgrowth", icon:"🌿", hue:70, sat:1.15,
+    bg:["#0a160c","#132414","#18301a"], floor:"#0c1a0e", accent:"120,200,110",
+    ambient:{color:"rgba(160,230,140,", n:22},
+    roster:["slime","spider","mushroom","bat"], boss:"Rootmaw the Ancient" },
+  { key:"emberdepths", name:"The Emberdepths", icon:"🌋", hue:-20, sat:1.3,
+    bg:["#160a08","#2a120c","#3a1810"], floor:"#1c0a06", accent:"255,140,70",
+    ambient:{color:"rgba(255,160,80,", n:30},
+    roster:["orc","golem","skeleton","bat"], boss:"Infernal Warden" },
+  { key:"voidspire", name:"The Void Spire", icon:"🔮", hue:40, sat:1.2,
+    bg:["#120a1e","#1e1236","#2a1848"], floor:"#140a24", accent:"180,120,255",
+    ambient:{color:"rgba(190,140,255,", n:26},
+    roster:["ghost","golem","spider","orc"], boss:"Necrolord Vyle" },
+];
+function biomeFor(floor){ return BIOMES[Math.floor((Math.max(1,floor)-1)/5) % BIOMES.length]; }
+function biomeTier(floor){ return Math.floor((Math.max(1,floor)-1)/(5*BIOMES.length)) + 1; }
+function biomeLabel(floor){
+  const b=biomeFor(floor), t=biomeTier(floor);
+  return b.name + (t>1 ? " " + "I".repeat(Math.min(t,4)) : "");
+}
+
+/* ==========================================================================
+   TALENTS — permanent skill tree, 3 branches. rank spent = 1 skill point.
+   ========================================================================== */
+const TALENTS = {
+  warfare: { name:"⚔️ Warfare", color:"--red", nodes:[
+    {key:"keenEdge",   name:"Keen Edge",    max:3, desc:"+2% Crit chance"},
+    {key:"brutality",  name:"Brutality",    max:1, desc:"Heavy Slash +15% damage"},
+    {key:"battleFocus",name:"Battle Focus", max:1, desc:"Basic Strike restores +4 MP"},
+    {key:"executioner",name:"Executioner",  max:1, desc:"+25% damage vs enemies below 30% HP"},
+  ]},
+  sorcery: { name:"🔮 Sorcery", color:"--blue", nodes:[
+    {key:"attunement", name:"Attunement",   max:2, desc:"Spells cost 10% less MP"},
+    {key:"wildfire",   name:"Wildfire",     max:1, desc:"Fireball leaves a burn (damage over time)"},
+    {key:"deepWell",   name:"Deep Well",    max:2, desc:"+15% Max MP"},
+    {key:"overcharge", name:"Overcharge",   max:1, desc:"First spell each fight can't miss"},
+  ]},
+  scholar: { name:"📖 Scholar", color:"--green", nodes:[
+    {key:"fortitude",  name:"Fortitude",    max:3, desc:"+12% Max HP"},
+    {key:"studyBuffer",name:"Study Buffer", max:2, desc:"+1.5s on Speed Chests"},
+    {key:"insight",    name:"Insight",      max:1, desc:"25% chance to hide a wrong answer on chest questions"},
+    {key:"secondWind", name:"Second Wind",  max:1, desc:"Once per run, survive a lethal hit at 25% HP"},
+  ]},
+};
+function talentRank(key){ return (S.talents && S.talents[key]) || 0; }
+function talentDef(key){
+  for(const br of Object.values(TALENTS)){ const n=br.nodes.find(x=>x.key===key); if(n) return n; }
+  return null;
+}
+function talentSpent(){ return Object.values(S.talents||{}).reduce((a,b)=>a+b,0); }
+
+/* ==========================================================================
+   RUN BOONS — temporary buffs picked at Shrines; live on `run`, never saved.
+   ========================================================================== */
+const BOONS = [
+  {key:"vampiric",   name:"Vampiric",     icon:"🩸", desc:"Heal 8 HP per correct answer"},
+  {key:"overflow",   name:"Overflow",     icon:"💧", desc:"Start every fight at full MP"},
+  {key:"momentum",   name:"Momentum",     icon:"🌀", desc:"+10% damage per enemy killed with no missed answers (resets on a miss)"},
+  {key:"treasure",   name:"Treasure Sense",icon:"💎",desc:"+50% gold this run"},
+  {key:"secondChance",name:"Second Chance",icon:"🍀",desc:"First wrong answer each fight doesn't misfire"},
+  {key:"glassCannon",name:"Glass Cannon",  icon:"⚡", desc:"+60% Crit, but take +25% damage", risk:true},
+  {key:"bloodlust",  name:"Bloodlust",    icon:"😈", desc:"+30% damage, but −15% Max HP", risk:true},
+  {key:"arcaneSurge",name:"Arcane Surge", icon:"✴️", desc:"Spells hit +50%, but cost +50% MP", risk:true},
+];
+function boonDef(key){ return BOONS.find(b=>b.key===key); }
+function hasBoon(key){ return run && run.boons.includes(key); }
+
+/* ==========================================================================
+   XP & LEVELING — permanent. Each level = +1 skill point + a heal.
+   ========================================================================== */
+function xpToNext(level){ return 40 + level*25; }
+function gainXP(amount){
+  if(amount<=0) return;
+  amount = Math.round(amount * (1 + itemMods().xpFind/100));   // "of Insight" affix
+  S.xp += amount;
+  const beforeLvl = S.level;
+  let leveled = 0;
+  while(S.xp >= xpToNext(S.level)){
+    S.xp -= xpToNext(S.level);
+    S.level++;
+    S.skillPoints++;
+    leveled++;
+  }
+  if(leveled>0){
+    onLevelUp(leveled);
+    // announce any newly-unlocked abilities
+    const unlocked = ABILITY_ORDER.filter(k=> ACTIONS[k].lvl>beforeLvl && ACTIONS[k].lvl<=S.level);
+    if(unlocked.length){
+      const names = unlocked.map(k=> ACTIONS[k].icon+" "+ACTIONS[k].name).join(", ");
+      setTimeout(()=> toast(`🆕 New ability: ${names}! Equip it in Abilities.`), 900);
+    }
+  }
+  save();
+  if(typeof updateHUD==="function" && battle) updateHUD();
+}
+function onLevelUp(times){
+  // heal ~35% max HP (nice reward for leveling mid-fight)
+  if(battle && battle.hero){
+    const h = battle.hero;
+    const heal = Math.round(h.maxHp*0.35)*times;
+    h.hp = Math.min(h.maxHp, h.hp + heal);
+    if(typeof addFloat==="function"){ addFloat("LEVEL UP!","hero","gold"); addFloat("+"+heal,"hero","heal"); }
+    if(typeof spawnHealParticles==="function") spawnHealParticles();
+  }
+  toast(`⭐ Level ${S.level}!  +${times} skill point${times>1?'s':''}`);
+}
+
+/* ---------- Derived stats (base + upgrades + equipment + talents + boons) ---------- */
+function derived(){
+  const b = S.base, u = S.upgrades;
+  let hp = b.hp + u.hp*20;
+  let mp = b.mp + u.mp*10;
+  let atk = b.atk + u.atk*4;
+  let def = b.def + u.def*3;
+  let crit = b.crit;
+  for(const slot of ITEM_TYPES){
+    const it = S.equipped[slot];
+    if(it){ hp+=it.hp||0; mp+=it.mp||0; atk+=it.atk||0; def+=it.def||0; crit+=it.crit||0; }
+  }
+  // --- Item affixes (percent stats) ---
+  const im = itemMods();
+  hp = Math.round(hp * (1 + im.maxHpPct/100));
+  mp = Math.round(mp * (1 + im.maxMpPct/100));
+  // --- Talents (permanent) ---
+  crit += talentRank("keenEdge")*2;
+  hp = Math.round(hp * (1 + talentRank("fortitude")*0.12));
+  mp = Math.round(mp * (1 + talentRank("deepWell")*0.15));
+  // --- Run boons (temporary) ---
+  if(hasBoon("glassCannon")) crit += 60;
+  if(hasBoon("bloodlust"))   hp = Math.round(hp * 0.85);
+  return {maxHp:hp, maxMp:mp, atk, def, crit};
+}
+
+/* ==========================================================================
+   SAVE / LOAD
+   ========================================================================== */
+function save(){
+  try{ localStorage.setItem(SAVE_KEY, JSON.stringify({s:S, deck})); }catch(e){}
+}
+function load(){
+  try{
+    const raw = localStorage.getItem(SAVE_KEY);
+    if(raw){
+      const p = JSON.parse(raw);
+      S = Object.assign(freshState(), p.s||{});
+      S.base = Object.assign(freshState().base, S.base||{});
+      S.upgrades = Object.assign(freshState().upgrades, S.upgrades||{});
+      S.equipped = Object.assign({weapon:null,armor:null,helmet:null,boots:null,accessory:null,trinket:null}, S.equipped||{});
+      S.talents = Object.assign({}, S.talents||{});
+      S.qstats = Object.assign({}, S.qstats||{});
+      S.settings = Object.assign({scrambleAnswers:false}, S.settings||{});
+      if(!Array.isArray(S.loadout) || !S.loadout.length) S.loadout = ["strike","slash","fireball","heal"];
+      if(typeof S.level!=="number") S.level=1;
+      if(typeof S.xp!=="number") S.xp=0;
+      if(typeof S.skillPoints!=="number") S.skillPoints=0;
+      deck = (p.deck && p.deck.length) ? p.deck : DEFAULT_DECK.slice();
+      return;
+    }
+  }catch(e){}
+  S = freshState();
+  deck = DEFAULT_DECK.slice();
+}
+
+/* ==========================================================================
+   BATTLE STATE (transient — not saved mid-fight)
+   ========================================================================== */
+let battle = null;  // { floor, hero, enemy, enemiesLeft, isBoss, busy, done }
+let run = null;     // transient per-dive state: { boons:[], momentum, secondWindUsed } — never saved
+let anim = { t:0, particles:[], floats:[], shake:0, heroLunge:0, enemyLunge:0, enemyHurt:0, heroHurt:0 };
+
+function makeHero(){
+  const d = derived();
+  return { hp:d.maxHp, maxHp:d.maxHp, mp:d.maxMp, maxMp:d.maxMp, atk:d.atk, def:d.def, crit:d.crit };
+}
+
+/* Enemy archetypes — each has its own sprite + a stat "personality".
+   Later entries unlock as floors get deeper for a sense of progression. */
+const MOBS = [
+  {kind:"slime",    name:"Green Slime",    hpM:1.00, atkM:0.90, defM:1.00, unlock:1},
+  {kind:"bat",      name:"Cave Bat",       hpM:0.80, atkM:1.10, defM:0.70, unlock:1},
+  {kind:"orc",      name:"Orc Brute",      hpM:1.30, atkM:1.10, defM:1.10, unlock:1},
+  {kind:"skeleton", name:"Skeleton",       hpM:0.90, atkM:1.15, defM:0.90, unlock:2},
+  {kind:"spider",   name:"Giant Spider",   hpM:0.95, atkM:1.20, defM:0.80, unlock:3},
+  {kind:"mushroom", name:"Myconid",        hpM:1.15, atkM:0.85, defM:1.25, unlock:4},
+  {kind:"ghost",    name:"Wraith",         hpM:0.85, atkM:1.35, defM:0.55, unlock:6},
+  {kind:"golem",    name:"Stone Golem",    hpM:1.55, atkM:1.00, defM:1.70, unlock:8},
+];
+const MOB_BY_KIND = Object.fromEntries(MOBS.map(m=>[m.kind,m]));
+
+/* Late-game difficulty ramp. =1 through floor 8 (early game unchanged),
+   then accelerates so deep floors and bosses stay threatening vs geared heroes.
+   HP ramps hardest; damage ramps a bit gentler so it's tough, not one-shotty. */
+function diffHp(f){  return 1 + Math.max(0,f-8)*0.14 + Math.max(0,f-15)*0.20 + Math.max(0,f-25)*0.30; }
+function diffAtk(f){ return 1 + Math.max(0,f-8)*0.07 + Math.max(0,f-15)*0.10 + Math.max(0,f-25)*0.14; }
+
+const ELITE_SPECIALS = {
+  frenzied: {prefix:"Frenzied",   note:"double strike every 3rd turn"},
+  armored:  {prefix:"Armored",    note:"takes 30% less damage"},
+  vampiric: {prefix:"Bloodthirsty",note:"heals when it hits you"},
+};
+function makeEnemy(floor, isBoss, idx, elite){
+  const f = floor;
+  const biome = biomeFor(f);
+  const exp = (run && run.expert) ? 1.4 : 1;   // Expert Dungeon buff
+  if(isBoss){
+    const hp = Math.round((90 + f*36) * diffHp(f) * exp);
+    return {
+      name: biome.boss,
+      hp, maxHp:hp,
+      atk: Math.round((12 + f*2.6) * diffAtk(f) * exp),
+      def: Math.round((4 + f*0.8) * (1 + Math.max(0,f-15)*0.04)),
+      isBoss:true, kind:"boss", burn:null, phase:1,
+    };
+  }
+  const kind = biome.roster[Math.floor(Math.random()*biome.roster.length)];
+  const m = MOB_BY_KIND[kind] || MOBS[0];
+  let hp = Math.round((34 + f*14 + idx*4) * m.hpM * diffHp(f) * exp);
+  let atk = Math.round((7 + f*1.7) * m.atkM * diffAtk(f) * exp);
+  let def = Math.round((2 + f*0.5) * m.defM * (1 + Math.max(0,f-15)*0.03));
+  if(elite){
+    const keys = Object.keys(ELITE_SPECIALS);
+    const sp = keys[Math.floor(Math.random()*keys.length)];
+    hp = Math.round(hp*2.2); atk = Math.round(atk*1.3); def = Math.round(def*1.2);
+    return { name: ELITE_SPECIALS[sp].prefix+" "+m.name, hp, maxHp:hp, atk, def,
+      isBoss:false, elite:true, special:sp, turnCount:0, kind:m.kind, burn:null };
+  }
+  return { name: m.name, hp, maxHp:hp, atk, def, isBoss:false, kind: m.kind, burn:null };
+}
+function bossPhase(e){ const p=e.hp/e.maxHp; return p>0.66?1 : p>0.33?2 : 3; }
+
+/* ==========================================================================
+   SCREEN MANAGEMENT
+   ========================================================================== */
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function backToHub(){ showScreen('hub'); renderHub(); }
+
+function renderHub(){
+  const d = derived();
+  document.getElementById('hubStats').innerHTML = `
+    <div class="statrow">HP <b>${d.maxHp}</b></div>
+    <div class="statrow">MP <b>${d.maxMp}</b></div>
+    <div class="statrow">Attack <b>${d.atk}</b></div>
+    <div class="statrow">Defense <b>${d.def}</b></div>
+    <div class="statrow">Crit <b>${d.crit}%</b></div>
+    <div class="statrow">Gold <b>${S.gold}</b></div>`;
+  document.getElementById('hubBestFloor').textContent = S.bestFloor;
+  document.getElementById('hubDeckCount').textContent = deck.length;
+  document.getElementById('goldPill') && (document.getElementById('goldPill').textContent = "💰 "+S.gold);
+  // level + xp
+  document.getElementById('hubLevelTag').textContent = "Level "+S.level + (S.skillPoints>0? `  ·  ${S.skillPoints}⭐` : "");
+  const need = xpToNext(S.level);
+  document.getElementById('hubXpFill').style.width = Math.min(100, S.xp/need*100)+"%";
+  document.getElementById('hubXpLabel').textContent = `${S.xp} / ${need} XP`;
+  document.getElementById('hubTalentDot').style.display = S.skillPoints>0? "inline" : "none";
+  // big floor banner (biome-aware)
+  const b = biomeFor(S.bestFloor);
+  document.getElementById('hubFloorBig').textContent = S.bestFloor;
+  document.querySelector('.floorbanner .fb-label').textContent = `${b.icon} ${biomeLabel(S.bestFloor).toUpperCase()}`;
+  const sub = document.getElementById('hubFloorSub');
+  if(S.bestFloor % 5 === 0){ sub.textContent = "☠ BOSS FLOOR — guaranteed high-rarity chest!"; sub.classList.add('fb-boss'); }
+  else{ const toBoss = 5 - (S.bestFloor % 5); sub.textContent = `${toBoss} floor${toBoss!==1?'s':''} until the next boss ☠`; sub.classList.remove('fb-boss'); }
+}
+
+/* ==========================================================================
+   TALENTS SCREEN
+   ========================================================================== */
+function renderTalents(){
+  document.getElementById('talPoints').textContent = S.skillPoints + " point" + (S.skillPoints!==1?"s":"");
+  const cols = document.getElementById('talentCols');
+  cols.innerHTML = Object.entries(TALENTS).map(([bkey,br])=>{
+    const nodes = br.nodes.map((n,i)=>{
+      const rank = talentRank(n.key);
+      const maxed = rank>=n.max;
+      // a node unlocks once the previous node in the branch has ≥1 rank
+      const prev = i>0 ? br.nodes[i-1] : null;
+      const locked = prev ? talentRank(prev.key)<1 : false;
+      const canBuy = !maxed && !locked && S.skillPoints>0;
+      const cls = maxed? "maxed" : (locked? "locked" : "");
+      const onclick = canBuy ? `onclick="buyTalent('${n.key}')"` : "";
+      return `<div class="talent-node ${cls}" ${onclick}>
+        <div class="tn-top"><span class="tn-name" style="color:var(${br.color})">${n.name}</span>
+          <span class="tn-rank">${rank}/${n.max}${maxed?" ✓":(locked?" 🔒":(canBuy?" +":""))}</span></div>
+        <div class="tn-desc">${n.desc}${n.max>1?` <span style="color:var(--muted)">(per rank)</span>`:''}</div>
+      </div>`;
+    }).join("");
+    return `<div class="talent-branch"><h4 style="color:var(${br.color})">${br.name}</h4>${nodes}</div>`;
+  }).join("");
+}
+function buyTalent(key){
+  const def = talentDef(key);
+  if(!def) return;
+  if(S.skillPoints<=0){ toast("No skill points"); return; }
+  if(talentRank(key)>=def.max){ return; }
+  S.talents[key] = talentRank(key)+1;
+  S.skillPoints--;
+  save(); renderTalents();
+  toast(def.name+" → rank "+S.talents[key]);
+}
+function respecTalents(){
+  const spent = talentSpent();
+  if(spent===0){ toast("No talents to refund"); return; }
+  msg("Respec Talents?", `Refund all <b>${spent}</b> spent points to reassign them? Free.`,
+    [{t:"Cancel", cls:"ghost", fn:closeMsg},
+     {t:"Respec", cls:"gold", fn:()=>{
+        S.skillPoints += spent; S.talents = {}; save(); closeMsg(); renderTalents();
+        toast("Refunded "+spent+" points");
+     }}]);
+}
+
+/* ==========================================================================
+   DUNGEON FLOW
+   ========================================================================== */
+function enterDungeon(){
+  if(S.bestFloor<=1){ startDungeon(1); return; }
+  openFloorSelect();
+}
+function openFloorSelect(){
+  document.getElementById('contFloorNum').textContent = S.bestFloor + (S.bestFloor%5===0?" ☠":"");
+  let html="";
+  for(let f=1; f<=S.bestFloor; f++){
+    const boss = f%5===0;
+    html += `<button class="floor-cell ${boss?'boss':''} ${f===S.bestFloor?'cur':''}" onclick="closeFloorSel(); startDungeon(${f})">${f}${boss?'☠':''}</button>`;
+  }
+  document.getElementById('floorGrid').innerHTML = html;
+  document.getElementById('floorSelOverlay').classList.add('active');
+}
+function closeFloorSel(){ document.getElementById('floorSelOverlay').classList.remove('active'); }
+
+let expertFloor = 1;
+function startDungeon(floor){
+  floor = floor || S.bestFloor;
+  // fresh run: boons + hero (HP/MP persist across rooms) are wiped when the dive ends
+  run = { boons:[], momentum:0, secondWindUsed:false, hero:makeHero(), expert:false };
+  if(Math.random() < 0.10){ expertFloor = floor; offerExpertSpinner(); }  // rare expert offer
+  else beginFloor(floor);
+}
+
+/* ---- Room system: each floor is a chosen room; boss floors are fixed ---- */
+const ROOMS = {
+  monster: {icon:"⚔️", name:"Monster Room",   desc:"A pack of foes — fight for loot."},
+  elite:   {icon:"👑", name:"Elite Room",     desc:"One deadly Elite. Guaranteed Rare+ loot."},
+  shrine:  {icon:"🔮", name:"Shrine",         desc:"Claim a temporary run boon."},
+  healing: {icon:"🧪", name:"Healing Spring", desc:"Restore HP & MP."},
+  event:   {icon:"❓", name:"Mystery Room",   desc:"A random encounter — risk & reward."},
+};
+function beginFloor(floor){
+  if(floor % 5 === 0){
+    showScreen('hub');
+    msg(`⚠️ Floor ${floor} — Boss`,
+      `<b style="color:var(--red)">${biomeFor(floor).boss}</b> blocks your path.${run.expert?'<br><span style="color:var(--gold)">🔥 Expert Dungeon active</span>':''}`,
+      [{t:"🏰 Hub", cls:"ghost", fn:()=>{closeMsg(); backToHub();}},
+       {t:"⚔️ Fight the Boss", cls:"red", fn:()=>{closeMsg(); enterRoom('boss', floor);}}]);
+  } else {
+    openRoomChoice(floor);
+  }
+}
+function openRoomChoice(floor){
+  showScreen('hub');
+  let cand = ["shrine","healing","event"];
+  if(floor>=3) cand.push("elite");
+  for(let i=cand.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [cand[i],cand[j]]=[cand[j],cand[i]]; }
+  const picks = ["monster", cand[0], cand[1]];   // always a fight option + 2 others
+  document.getElementById('roomTitle').textContent = `Floor ${floor} — Choose Your Path`;
+  document.getElementById('roomSub').innerHTML = `${biomeFor(floor).icon} ${biomeLabel(floor)}${run.expert?' · <span style="color:var(--gold)">🔥 Expert</span>':''}`;
+  document.getElementById('roomChoices').innerHTML = picks.map(t=>{
+    const r=ROOMS[t];
+    return `<button class="room-card room-${t}" onclick="enterRoom('${t}',${floor})">
+      <div class="room-ico">${r.icon}</div><div class="room-name">${r.name}</div><div class="room-desc">${r.desc}</div></button>`;
+  }).join("");
+  document.getElementById('roomOverlay').classList.add('active');
+}
+function enterRoom(type, floor){
+  closeMsg();
+  document.getElementById('roomOverlay').classList.remove('active');
+  if(type==="monster") startCombat(floor, {});
+  else if(type==="elite") startCombat(floor, {elite:true});
+  else if(type==="boss") startCombat(floor, {boss:true});
+  else if(type==="shrine") shrineRoom(floor);
+  else if(type==="healing") healingRoom(floor);
+  else if(type==="event") openEvent(floor);
+}
+function startCombat(floor, opts){
+  battle = {
+    floor, isBoss:!!opts.boss, elite:!!opts.elite,
+    hero: run.hero,                    // shared → HP/MP persist across the run
+    enemiesLeft: (opts.boss||opts.elite) ? 1 : 3,
+    enemyIdx: 0, enemy: null, busy:false, done:false,
+  };
+  spawnNextEnemy();
+  renderActionBar();
+  showScreen('dungeon');
+  resizeCanvas();
+  updateHUD();
+  save();
+}
+function shrineRoom(floor){
+  showScreen('hub');
+  battle = { floor, hero:run.hero };
+  if(availableBoons().length===0){ toast("The shrine lies dormant…"); advanceFloor(floor); return; }
+  openShrine(()=> advanceFloor(floor));
+}
+function healingRoom(floor){
+  showScreen('hub');
+  battle = { floor, hero:run.hero };
+  const h = run.hero;
+  const hpBack = Math.round(h.maxHp*0.6), mpBack = Math.round(h.maxMp*0.5);
+  h.hp = Math.min(h.maxHp, h.hp+hpBack); h.mp = Math.min(h.maxMp, h.mp+mpBack);
+  save();
+  msg("🧪 Healing Spring", `You rest and recover.<br><b style="color:var(--green)">+${hpBack} HP</b> · <b style="color:var(--blue)">+${mpBack} MP</b>`,
+    [{t:"Continue →", cls:"gold", fn:()=>{closeMsg(); advanceFloor(floor);}}]);
+}
+function advanceFloor(floor){
+  const next = floor+1;
+  if(next > S.bestFloor) S.bestFloor = next;
+  save();
+  beginFloor(next);
+}
+
+/* ---- Random dungeon events (Mystery Room) ---- */
+const EVENTS = [
+  { title:"🚪 Mysterious Door", desc:"A heavy door hums with faint magic.", choices:[
+    {t:"Open it", fn:(floor)=>{ const r=Math.random();
+      if(r<0.5){ const g=Math.round(30+floor*6); S.gold+=g; return `You find <b>💰 ${g} gold</b>!`; }
+      if(r<0.8){ const it=makeItem(rollRarity(floor,false), floor); S.inventory.push(it); return `Treasure! You found <b style="color:var(--${it.rarity})">${it.name}</b>.`; }
+      const dmg=Math.round(run.hero.maxHp*0.15); run.hero.hp=Math.max(1,run.hero.hp-dmg); return `It's a trap! You lose <b style="color:var(--red)">${dmg} HP</b>.`; }},
+    {t:"Leave it", fn:()=> "You leave the door untouched."} ]},
+  { title:"🧎 Wounded Adventurer", desc:"A hurt adventurer asks you for 50 gold.", choices:[
+    {t:"Give 50 gold", fn:()=>{ if(S.gold<50) return "You don't have 50 gold to give."; S.gold-=50;
+      const av=availableBoons(); if(av.length){ const b=av[Math.floor(Math.random()*av.length)]; run.boons.push(b.key); return `They bless you with <b>${b.icon} ${b.name}</b>!`; }
+      S.gold+=120; return "They repay your kindness with <b>💰 120 gold</b>!"; }},
+    {t:"Walk away", fn:()=> "You walk away."} ]},
+  { title:"⚗️ Cursed Chalice", desc:"A chalice of dark, swirling liquid. Drink it?", choices:[
+    {t:"Drink", fn:()=>{ if(Math.random()<0.6){ run.hero.hp=run.hero.maxHp; run.hero.mp=run.hero.maxMp; return "Refreshing! You are <b style='color:var(--green)'>fully restored</b>."; }
+      const dmg=Math.round(run.hero.maxHp*0.25); run.hero.hp=Math.max(1,run.hero.hp-dmg); return `Poison! You lose <b style="color:var(--red)">${dmg} HP</b>.`; }},
+    {t:"Pour it out", fn:()=> "You pour it out safely."} ]},
+  { title:"🗡️ Cursed Blade", desc:"A blade radiating power — and menace.", choices:[
+    {t:"Take it", fn:()=>{ if(!run.boons.includes("glassCannon")) run.boons.push("glassCannon"); return "You gain <b>⚡ Glass Cannon</b> for this run — massive crit, but you take more damage!"; }},
+    {t:"Leave it", fn:()=> "You leave the cursed blade behind."} ]},
+  { title:"🎲 Gambler's Table", desc:"A shady figure offers a coin flip. Wager 40 gold?", choices:[
+    {t:"Bet 40 gold", fn:()=>{ if(S.gold<40) return "Not enough gold to bet."; if(Math.random()<0.5){ S.gold+=40; return "You win — <b>💰 +80 gold</b>!"; } S.gold-=40; return "You lose the bet. <b style='color:var(--red)'>−40 gold</b>."; }},
+    {t:"Decline", fn:()=> "You keep your gold."} ]},
+];
+function openEvent(floor){
+  showScreen('hub');
+  battle = { floor, hero:run.hero };
+  const ev = EVENTS[Math.floor(Math.random()*EVENTS.length)];
+  const btns = ev.choices.map((c,i)=> ({t:c.t, cls:i===0?"gold":"ghost", fn:()=> resolveEvent(ev,i,floor)}));
+  msg(ev.title, ev.desc, btns);
+}
+function resolveEvent(ev, i, floor){
+  const result = ev.choices[i].fn(floor) || "";
+  save();
+  msg(ev.title, result, [{t:"Continue →", cls:"gold", fn:()=>{ closeMsg(); advanceFloor(floor); }}]);
+}
+
+/* ---- Expert Dungeon spinner (rare, ~10% at run start) ---- */
+function offerExpertSpinner(){
+  showScreen('hub');
+  const wheel = document.getElementById('expertWheel');
+  const btns = document.getElementById('expertButtons');
+  btns.style.display = "none";
+  wheel.classList.remove('spin'); void wheel.offsetWidth; wheel.classList.add('spin');
+  document.getElementById('expertOverlay').classList.add('active');
+  setTimeout(()=>{ btns.style.display = "flex"; }, 1300);
+}
+function acceptExpert(){
+  run.expert = true;
+  document.getElementById('expertOverlay').classList.remove('active');
+  toast("🔥 Expert Dungeon! Tougher foes · 2× gold · bonus loot.");
+  beginFloor(expertFloor);
+}
+function declineExpert(){
+  document.getElementById('expertOverlay').classList.remove('active');
+  beginFloor(expertFloor);
+}
+function spawnNextEnemy(){
+  battle.enemy = makeEnemy(battle.floor, battle.isBoss, battle.enemyIdx, battle.elite);
+  anim.particles.length=0;
+  // per-fight flags (talents/boons that fire "once each fight")
+  battle.overchargeUsed = false;
+  battle.freeMissUsed = false;
+  battle.missedThisFight = false;
+  battle.brace = false;
+  // Overflow boon: start every fight at full MP
+  if(hasBoon("overflow")) battle.hero.mp = battle.hero.maxMp;
+  const e = battle.enemy;
+  toast(e.isBoss ? `⚠️ BOSS: ${e.name}` : e.elite ? `👑 ELITE: ${e.name}!` : `${e.name} appears!`);
+}
+function updateHUD(){
+  const b = biomeFor(battle.floor);
+  document.getElementById('biomePill').textContent = `${b.icon} ${b.name.replace(/^The /,'')}`;
+  document.getElementById('floorPill').textContent = "Floor "+battle.floor + (battle.isBoss? " ☠":"");
+  document.getElementById('goldPill').textContent = "💰 "+S.gold;
+  document.getElementById('lvlPill').textContent = "Lv "+S.level;
+  document.getElementById('expertPill').style.display = (run&&run.expert)? "" : "none";
+  // xp strip
+  const need = xpToNext(S.level);
+  document.getElementById('xpfill').style.width = Math.min(100, S.xp/need*100)+"%";
+  document.getElementById('xplabel').textContent = `LV ${S.level} · ${S.xp}/${need} XP` + (S.skillPoints>0? `  ·  ${S.skillPoints}⭐ unspent` : "");
+  // boons chip
+  const bp = document.getElementById('boonsPill');
+  if(run && run.boons.length){ bp.style.display=""; bp.textContent = "✨ "+run.boons.length; }
+  else bp.style.display="none";
+  // action affordability (uses effective MP costs)
+  const h = battle.hero;
+  document.querySelectorAll('.action').forEach(el=>{
+    const act = el.dataset.act;
+    const affordable = h.mp >= effectiveCost(act);
+    el.classList.toggle('disabled', !!(battle.busy || !affordable || battle.done));
+  });
+}
+/* Effective MP cost after Attunement talent & Arcane Surge boon */
+function effectiveCost(actKey){
+  let c = ACTIONS[actKey].cost;
+  if(c<=0) return 0;
+  c *= (1 - talentRank("attunement")*0.10);
+  if(hasBoon("arcaneSurge") && ACTIONS[actKey].type!=="phys") c *= 1.5;
+  c -= itemMods().mpReduce;   // "of Focus" affix
+  return Math.max(0, Math.round(c));
+}
+function showBoonList(){
+  if(!run || !run.boons.length){ closeMsg(); return; }
+  const body = run.boons.map(k=>{ const d=boonDef(k); return `<div style="text-align:left; margin:8px 0; display:flex; gap:10px; align-items:flex-start">
+      <div style="flex:1"><b>${d.icon} ${d.name}</b><br><small style="color:var(--muted)">${d.desc}</small></div>
+      <button class="btn ghost sm" style="font-size:11px; padding:4px 8px" onclick="renounceBoon('${k}')">Renounce</button>
+    </div>`; }).join("");
+  msg("✨ Active Run Boons", body + `<div class="hint" style="margin-top:8px">Renounce any boon to drop it (including its downside). All boons clear when you return to the Hub.</div>`, [{t:"Close", cls:"ghost", fn:closeMsg}]);
+}
+function fleeToHub(){
+  msg("Flee the Dungeon?", "You'll return to the Hub with your gold and gear. Floor progress is kept.",
+    [{t:"Stay", cls:"ghost", fn:closeMsg},{t:"Flee", cls:"red", fn:()=>{closeMsg(); backToHub();}}]);
+}
+
+/* ==========================================================================
+   ACTIONS  →  open question modal
+   ========================================================================== */
+const ACTIONS = {
+  strike:  {name:"Strike",       cost:0,  type:"phys", mult:1.0,  icon:"⚔️", mpGain:8, lvl:1, desc:"Physical hit. Restores +8 MP on a correct answer."},
+  slash:   {name:"Heavy Slash",  cost:10, type:"phys", mult:1.9,  icon:"🗡️", lvl:1, desc:"Heavy physical damage."},
+  fireball:{name:"Fireball",     cost:15, type:"fire", mult:2.6,  icon:"🔥", lvl:1, desc:"Big fire damage."},
+  heal:    {name:"Holy Heal",    cost:20, type:"heal", amount:0.5,icon:"✨", lvl:1, desc:"Restore 50% of your Max HP."},
+  focus:   {name:"Focus",        cost:0,  type:"focus",icon:"🧘", lvl:2, desc:"No attack — recover 40% MP and brace (take 50% less on the next hit)."},
+  frost:   {name:"Frost Bolt",   cost:12, type:"frost",mult:2.0,  icon:"❄️", lvl:4, desc:"Damage + Freeze: the enemy's next attack is skipped."},
+  poison:  {name:"Poison Sting", cost:10, type:"poison",mult:1.1, icon:"☠️", lvl:7, desc:"Light hit + Poison: damage every turn for a while."},
+  cataclysm:{name:"Cataclysm",   cost:25, type:"fire", mult:3.8,  icon:"☄️", lvl:10, desc:"Your ultimate — a massive nuke."},
+};
+const ABILITY_ORDER = ["strike","slash","fireball","heal","focus","frost","poison","cataclysm"];
+const LOADOUT_SLOTS = 5;
+function knownAbilities(){ return ABILITY_ORDER.filter(k=> S.level >= ACTIONS[k].lvl); }
+let pendingAction = null;
+
+function isSpell(a){ return a.type!=="phys" && a.type!=="focus"; }
+/* Build the combat action bar from the equipped loadout */
+function renderActionBar(){
+  const bar = document.getElementById('actionbar');
+  const list = (S.loadout && S.loadout.length ? S.loadout : ["strike","slash","fireball","heal"]).filter(k=>ACTIONS[k]);
+  bar.innerHTML = list.map(k=>{
+    const a = ACTIONS[k];
+    const costTxt = a.mpGain ? `0 · <span style="color:var(--green)">+${a.mpGain}</span>`
+                  : (a.cost>0 ? a.cost+" MP" : "0 MP");
+    return `<div class="action" data-act="${k}" onclick="chooseAction('${k}')">
+      <div class="icon">${a.icon}</div><div class="name">${a.name}</div>
+      <div class="cost ${a.cost>0?'':'free'}">${costTxt}</div>
+    </div>`;
+  }).join("");
+}
+function chooseAction(actKey){
+  if(battle.busy || battle.done) return;
+  const a = ACTIONS[actKey];
+  if(battle.hero.mp < effectiveCost(actKey)){ toast("Not enough MP!"); return; }
+  pendingAction = actKey;
+  openQuestion(a);
+}
+
+/* ---- Shuffle-bag question picker: every question appears once before any
+   repeat, and never the same one twice in a row. ---- */
+let qBag = [];
+let lastQ = null;
+function refillBag(){
+  qBag = deck.map((_,i)=>i);
+  for(let i=qBag.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [qBag[i],qBag[j]]=[qBag[j],qBag[i]]; }
+  // avoid an immediate repeat across refills
+  if(deck.length>1 && lastQ!==null && deck[qBag[qBag.length-1]] && deck[qBag[qBag.length-1]].q===lastQ){
+    [qBag[0], qBag[qBag.length-1]] = [qBag[qBag.length-1], qBag[0]];
+  }
+}
+function resetBag(){ qBag = []; lastQ = null; }
+function drawQuestion(){
+  if(!deck.length) return DEFAULT_DECK[0];
+  if(qBag.length===0) refillBag();
+  const q = deck[qBag.pop()];
+  lastQ = q.q;
+  return q;
+}
+function drawQuestions(n){   // n distinct questions (for chests)
+  const out=[], seen=new Set();
+  let guard=0;
+  while(out.length<n && guard++ < n*5){
+    const q=drawQuestion();
+    if(!seen.has(q.q) || seen.size>=deck.length){ seen.add(q.q); out.push(q); }
+  }
+  return out;
+}
+/* record a question's answer stats (keyed by question text) */
+function recordAnswer(q, correct){
+  if(!q || !q.q) return;
+  const s = S.qstats[q.q] || (S.qstats[q.q]={seen:0, correct:0});
+  s.seen++; if(correct) s.correct++;
+  save();
+}
+
+/* Build the 4 displayed options for a question, honoring the scramble setting.
+   Returns an array of {text, correct} already shuffled into display order.
+   - Fixed mode: the question's own 4 written options (shuffled).
+   - Scramble mode: keep the correct answer, swap the 3 wrong ones for random
+     answers pulled from OTHER questions each time (prevents memorizing patterns). */
+function buildOptions(q){
+  const correct = q.o[q.a];
+  let opts;
+  if(S.settings && S.settings.scrambleAnswers && deck.length>=4){
+    const seen = new Set([correct]);
+    const pool = [];
+    deck.forEach(d=> d.o.forEach(o=>{ if(o && !seen.has(o)){ seen.add(o); pool.push(o); } }));
+    for(let i=pool.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [pool[i],pool[j]]=[pool[j],pool[i]]; }
+    const distractors = pool.slice(0,3);
+    // fall back to the question's own wrong options if the pool is too small
+    if(distractors.length<3) q.o.forEach((o,idx)=>{ if(idx!==q.a && distractors.length<3 && !distractors.includes(o)) distractors.push(o); });
+    opts = [correct, ...distractors];
+  } else {
+    opts = q.o.slice();
+  }
+  const arr = opts.map(t=>({text:t, correct: t===correct}));
+  for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; }
+  return arr;
+}
+
+function openQuestion(a){
+  const q = drawQuestion();
+  document.getElementById('qTitle').textContent = a.icon + " " + a.name;
+  document.getElementById('qSub').textContent = a.type==="heal" ? "Answer right to channel the heal!" : "Answer right to land the hit!";
+  document.getElementById('qText').textContent = q.q;
+  const opts = document.getElementById('qOpts');
+  opts.innerHTML = "";
+  const built = buildOptions(q);
+  built.forEach(o=>{
+    const b = document.createElement('button');
+    b.className='opt'; b.textContent = o.text;
+    b.onclick = ()=> answerQuestion(o.correct, b, q, opts, built);
+    opts.appendChild(b);
+  });
+  document.getElementById('qOverlay').classList.add('active');
+}
+
+function answerQuestion(correct, btn, q, optsEl, built){
+  recordAnswer(q, correct);
+  // lock all options + reveal
+  [...optsEl.children].forEach((el,idx)=>{
+    el.onclick=null;
+    if(built[idx].correct) el.classList.add('correct');
+    else el.classList.add('dim');
+  });
+  if(!correct){ btn.classList.remove('dim'); btn.classList.add('wrong'); }
+  setTimeout(()=>{
+    document.getElementById('qOverlay').classList.remove('active');
+    resolveAction(correct);
+  }, correct? 420 : 720);
+}
+
+/* ==========================================================================
+   RESOLVE ACTION  (damage / heal / misfire + counter)
+   ========================================================================== */
+function resolveAction(correct){
+  const a = ACTIONS[pendingAction];
+  const h = battle.hero, e = battle.enemy;
+  battle.busy = true;
+  updateHUD();
+
+  // ---- wrong answer, with possible "saves" ----
+  if(!correct){
+    // Overcharge talent: first spell each fight lands anyway
+    if(isSpell(a) && talentRank("overcharge") && !battle.overchargeUsed){
+      battle.overchargeUsed = true;
+      toast("⚡ Overcharge — the spell lands anyway!");
+      correct = true;
+    } else {
+      if(run) run.momentum = 0;            // a miss breaks Momentum
+      battle.missedThisFight = true;
+      // Second Chance boon: first miss each fight is forgiven (no MP loss, no counter)
+      if(hasBoon("secondChance") && !battle.freeMissUsed){
+        battle.freeMissUsed = true;
+        toast("🍀 Second Chance — no penalty!");
+        battle.busy = false; updateHUD();
+        return;
+      }
+      // real misfire
+      h.mp = Math.max(0, h.mp - effectiveCost(pendingAction));
+      toast("❌ Misfire! MP wasted.");
+      anim.heroLunge = 0;
+      setTimeout(()=> enemyTurn(true), 380);
+      return;
+    }
+  }
+
+  // ---- success ----
+  h.mp = Math.max(0, h.mp - effectiveCost(pendingAction));
+  // Vampiric boon: heal on any correct answer
+  if(hasBoon("vampiric") && h.hp < h.maxHp){
+    const v = Math.min(8, h.maxHp - h.hp); h.hp += v; addFloat("+"+v, "hero", "heal");
+  }
+
+  if(a.type==="focus"){
+    const mpBack = Math.round(h.maxMp * 0.40);
+    if(h.mp < h.maxMp){ const g=Math.min(mpBack, h.maxMp-h.mp); h.mp+=g; addFloat("+"+g+" MP","hero","mana"); }
+    spawnManaParticles();
+    battle.brace = true;                 // halves the next incoming hit
+    addFloat("🧘 BRACE","hero","gold");
+    afterHeroAct();
+    return;
+  }
+
+  if(a.type==="heal"){
+    let heal = Math.round(h.maxHp * a.amount);
+    if(hasBoon("arcaneSurge")) heal = Math.round(heal*1.5);
+    h.hp = Math.min(h.maxHp, h.hp + heal);
+    spawnHealParticles();
+    addFloat("+"+heal, "hero", "heal");
+    afterHeroAct();
+    return;
+  }
+
+  // ---- damage ----
+  anim.heroLunge = 1;
+  const im = itemMods();
+  const isCrit = Math.random()*100 < h.crit;
+  let mult = a.mult;
+  if(pendingAction==="slash" && talentRank("brutality")) mult *= 1.15;   // Brutality
+  if(isSpell(a) && hasBoon("arcaneSurge")) mult *= 1.5;                   // Arcane Surge
+  if(hasBoon("bloodlust")) mult *= 1.30;                                 // Bloodlust
+  if(run && run.momentum) mult *= (1 + run.momentum*0.10);               // Momentum
+  if(a.type==="phys") mult *= (1 + im.warPct/100);                       // "of War" affix
+  else mult *= (1 + im.spellPct/100);                                    // "of Sorcery" affix (fire/frost/poison)
+  let dmg = Math.max(1, Math.round((h.atk*mult - e.def*0.6) * (0.9+Math.random()*0.2)));
+  if(e.hp < e.maxHp*0.30 && talentRank("executioner")) dmg = Math.round(dmg*1.25); // Executioner
+  if(isCrit) dmg = Math.round(dmg*(1.5 + im.critDmg/100));               // "of Ferocity" affix
+  if(e.special==="armored") dmg = Math.max(1, Math.round(dmg*0.7));      // Armored elite
+  setTimeout(()=>{
+    e.hp = Math.max(0, e.hp - dmg);
+    anim.enemyHurt = 1; anim.shake = isCrit? 10:5;
+    addFloat((isCrit? "CRIT ":"")+dmg, "enemy", isCrit? "crit":"dmg");
+    if(a.type==="phys") spawnSlashParticles();
+    else if(a.type==="frost") spawnBurst(200);
+    else if(a.type==="poison") spawnBurst(110);
+    else spawnFireParticles();
+    // Frost Bolt: freeze the enemy's next turn
+    if(a.type==="frost" && e.hp>0){ e.frozen = 1; addFloat("❄️ FROZEN","enemy","mana"); }
+    // Poison Sting: damage-over-time
+    if(a.type==="poison" && e.hp>0){ e.poison = { dmg: Math.max(2, Math.round(h.atk*0.3)), turns:4 }; addFloat("☠️ POISONED","enemy","dmg"); }
+    // Lifesteal affix ("of the Leech")
+    if(im.lifesteal && h.hp<h.maxHp){
+      const ls = Math.max(1, Math.round(dmg*im.lifesteal/100));
+      h.hp = Math.min(h.maxHp, h.hp+ls); addFloat("+"+ls, "hero", "heal");
+    }
+    // Wildfire talent: Fireball leaves a burn
+    if(a.type==="fire" && talentRank("wildfire")){
+      e.burn = { dmg: Math.max(2, Math.round(h.atk*0.4)), turns:3 };
+      toast("🔥 Enemy is burning!");
+    }
+    // Basic Strike channels mana back (+ Battle Focus talent)
+    if(a.mpGain){
+      let gain = a.mpGain + talentRank("battleFocus")*4;
+      gain = Math.min(gain, h.maxMp - h.mp);
+      if(gain>0){ h.mp += gain; addFloat("+"+gain+" MP", "hero", "mana"); spawnManaParticles(); }
+    }
+    afterHeroAct();
+  }, 240);
+}
+
+function tickBurn(){
+  const e = battle.enemy;
+  if(e.burn && e.burn.turns>0){
+    e.hp = Math.max(0, e.hp - e.burn.dmg);
+    anim.enemyHurt = 1;
+    addFloat("🔥"+e.burn.dmg, "enemy", "dmg");
+    e.burn.turns--;
+    if(e.burn.turns<=0) e.burn = null;
+  }
+  if(e.poison && e.poison.turns>0){
+    e.hp = Math.max(0, e.hp - e.poison.dmg);
+    anim.enemyHurt = 1;
+    addFloat("☠️"+e.poison.dmg, "enemy", "dmg");
+    e.poison.turns--;
+    if(e.poison.turns<=0) e.poison = null;
+  }
+}
+
+function afterHeroAct(){
+  // Regen affix ("of Renewal") — heal a little each of your turns
+  const rg = itemMods().regen;
+  if(rg && battle.hero.hp>0 && battle.hero.hp<battle.hero.maxHp){
+    const v=Math.min(rg, battle.hero.maxHp-battle.hero.hp);
+    battle.hero.hp+=v; addFloat("+"+v, "hero", "heal");
+  }
+  tickBurn();
+  // Boss phase transitions
+  const e = battle.enemy;
+  if(e.isBoss && e.hp>0){
+    const ph = bossPhase(e);
+    if(ph > e.phase){
+      e.phase = ph; anim.shake = 12; e.enraged = (ph===3);
+      toast(ph===3 ? `🔥 ${e.name} ENRAGES!` : `⚔️ ${e.name} grows fiercer!`);
+    }
+  }
+  save();
+  updateHUD();
+  if(battle.enemy.hp<=0){
+    setTimeout(enemyDefeated, 520);
+  } else {
+    setTimeout(()=> enemyTurn(false), 620);
+  }
+}
+
+/* enemy attacks the hero */
+function enemyTurn(fromMisfire){
+  const h = battle.hero, e = battle.enemy;
+  if(battle.done) return;
+  // Frost Bolt: enemy is frozen and skips this attack
+  if(e.frozen){
+    e.frozen = 0;
+    addFloat("❄️ Frozen!", "enemy", "mana");
+    toast("The enemy is frozen and can't attack!");
+    setTimeout(()=>{ battle.busy=false; updateHUD(); }, 500);
+    return;
+  }
+  anim.enemyLunge = 1;
+  let base = e.atk * (fromMisfire? 1.15 : 1.0);
+  // Boss phase enrage
+  if(e.isBoss){ const ph=bossPhase(e); if(ph===2) base*=1.3; else if(ph===3) base*=1.7; }
+  // Frenzied elite: double strike every 3rd turn
+  let frenzy = false;
+  if(e.special==="frenzied"){ e.turnCount=(e.turnCount||0)+1; if(e.turnCount%3===0){ base*=1.9; frenzy=true; } }
+  let dmg = Math.max(1, Math.round((base - h.def*0.7) * (0.9+Math.random()*0.25)));
+  if(battle.brace){ dmg = Math.round(dmg*0.5); battle.brace=false; }  // Focus brace
+  if(hasBoon("glassCannon")) dmg = Math.round(dmg*1.25);   // Glass Cannon downside
+  if(frenzy) toast("⚡ Frenzied double strike!");
+  setTimeout(()=>{
+    h.hp = Math.max(0, h.hp - dmg);
+    anim.heroHurt = 1; anim.shake = 7;
+    addFloat("-"+dmg, "hero", "dmg");
+    // Vampiric elite: heals itself when it hits you
+    if(e.special==="vampiric"){ const hl=Math.round(dmg*0.3); e.hp=Math.min(e.maxHp, e.hp+hl); addFloat("+"+hl,"enemy","heal"); }
+    // Second Wind talent: survive one lethal hit per run at 25% HP
+    if(h.hp<=0 && talentRank("secondWind") && run && !run.secondWindUsed){
+      run.secondWindUsed = true;
+      h.hp = Math.round(h.maxHp*0.25);
+      addFloat("SECOND WIND!", "hero", "gold");
+      spawnHealParticles();
+      toast("🛡️ Second Wind saved you!");
+    }
+    if(h.hp<=0){ save(); updateHUD(); setTimeout(heroDied, 600); return; }
+    // Thorns affix ("of Thorns") — reflect damage back at the attacker
+    const th = itemMods().thorns;
+    if(th){
+      e.hp = Math.max(0, e.hp - th); anim.enemyHurt=1; addFloat("⚡"+th, "enemy", "dmg");
+      if(e.hp<=0){ save(); updateHUD(); battle.busy=true; setTimeout(enemyDefeated, 500); return; }
+    }
+    save();
+    battle.busy=false; updateHUD();
+  }, 240);
+}
+
+function enemyDefeated(){
+  const e = battle.enemy;
+  toast(`💀 ${e.name} defeated!`);
+  // Momentum boon: killing an enemy with no missed answers stacks +10% damage
+  if(hasBoon("momentum") && !battle.missedThisFight) run.momentum = Math.min(10, (run.momentum||0)+1);
+  // XP for the kill (bosses & elites give much more)
+  gainXP(e.isBoss ? Math.round(30 + battle.floor*4) : e.elite ? Math.round(18 + battle.floor*3) : Math.round(6 + battle.floor*1.5));
+  battle.enemiesLeft--;
+  battle.enemyIdx++;
+  if(battle.enemiesLeft>0){
+    // reward the kill: restore some MP so fights keep flowing
+    const h = battle.hero;
+    const mpBack = Math.round(h.maxMp * 0.20);
+    if(h.mp < h.maxMp){ h.mp = Math.min(h.maxMp, h.mp + mpBack); addFloat("+"+mpBack+" MP","hero","mana"); }
+    spawnNextEnemy();
+    battle.busy=false;
+    updateHUD();
+  } else {
+    // floor cleared → floor-clear XP → chest
+    battle.done = true;
+    gainXP(Math.round(10 + battle.floor*2));
+    setTimeout(()=> startChest(), 700);
+  }
+}
+
+function heroDied(){
+  battle.done = true;
+  msg("💀 You Have Fallen",
+    `You reached <b>Floor ${battle.floor}</b>.<br>You keep all gold and equipped gear.<br>Return to the Hub to upgrade, then try again!`,
+    [{t:"Return to Hub", cls:"gold", fn:()=>{closeMsg(); backToHub();}}]);
+  save();
+}
+
+/* ==========================================================================
+   CHEST / SPEED CHALLENGE
+   ========================================================================== */
+let chest = null; // {rarity, questions, idx, correct, timeLeft, timerId}
+
+function rollRarity(floor, isBoss){
+  const r = Math.random();
+  if(isBoss){
+    // Bosses always give Epic minimum. Legendary is earned with depth, Mythic is deep-only.
+    const mythCh = Math.min(0.15, Math.max(0, (floor-15)*0.012));
+    const legCh  = Math.min(0.55, Math.max(0, (floor-5)*0.05));
+    if(r < mythCh) return "mythic";
+    if(r < mythCh+legCh) return "legendary";
+    return "epic";
+  }
+  // Normal floors — a full ladder; Mythic/Legendary are genuinely rare & deep.
+  const mythCh = Math.min(0.015, Math.max(0, (floor-12)*0.0015));
+  const legCh  = Math.min(0.05,  Math.max(0, (floor-8)*0.004));
+  const epicCh = Math.min(0.20,  0.02 + floor*0.010);
+  const rareCh = Math.min(0.34,  0.14 + floor*0.009);
+  const uncCh  = 0.30;
+  let t = mythCh;               if(r < t) return "mythic";
+  t += legCh;                    if(r < t) return "legendary";
+  t += epicCh;                   if(r < t) return "epic";
+  t += rareCh;                   if(r < t) return "rare";
+  t += uncCh;                    if(r < t) return "uncommon";
+  return "common";
+}
+
+function bumpMin(rarity, minR){ return RARITY_ORDER[rarity] < RARITY_ORDER[minR] ? minR : rarity; }
+function startChest(){
+  let rarity = rollRarity(battle.floor, battle.isBoss);
+  if(battle.elite) rarity = bumpMin(rarity, "rare");  // Elite = Rare+
+  if(run && run.expert) rarity = bumpMin(rarity, "rare");                // Expert = Rare+
+  // 3 distinct questions from the shuffle-bag (fair coverage)
+  const qs = drawQuestions(3);
+  const total = 15 + talentRank("studyBuffer")*1.5 + itemMods().chestTime;   // Study Buffer talent + "of Haste" affix
+  chest = { rarity, questions:qs, idx:0, correct:0, timeLeft:total, total, timerId:null };
+  const rName = rarity.charAt(0).toUpperCase()+rarity.slice(1);
+  document.getElementById('chestTitle').textContent = `${rarityIcon(rarity)} ${rName} Chest — Speed Challenge`;
+  document.getElementById('chestTitle').style.color = `var(--${rarity})`;
+  document.getElementById('chestScore').textContent = "0/3";
+  document.getElementById('chestOverlay').classList.add('active');
+  showChestQuestion();
+  // timer
+  chest.lastTs = performance.now();
+  chest.timerId = requestAnimationFrame(chestTick);
+}
+
+function chestTick(ts){
+  if(!chest) return;
+  const dt = (ts - chest.lastTs)/1000;
+  chest.lastTs = ts;
+  chest.timeLeft -= dt;
+  if(chest.timeLeft<=0){ chest.timeLeft=0; endChest(); return; }
+  document.getElementById('chestTimerFill').style.width = (chest.timeLeft/chest.total*100)+"%";
+  chest.timerId = requestAnimationFrame(chestTick);
+}
+
+function showChestQuestion(){
+  if(chest.idx>=chest.questions.length){ endChest(); return; }
+  const q = chest.questions[chest.idx];
+  document.getElementById('chestQText').textContent = `Q${chest.idx+1}. ${q.q}`;
+  const opts = document.getElementById('chestOpts');
+  opts.innerHTML="";
+  const built = buildOptions(q);
+  // Insight talent: 25% chance to hide one wrong option
+  let hideIdx = -1;
+  if(talentRank("insight") && Math.random()<0.25){
+    const wrongs = built.map((o,i)=>o.correct?-1:i).filter(i=>i>=0);
+    if(wrongs.length) hideIdx = wrongs[Math.floor(Math.random()*wrongs.length)];
+  }
+  built.forEach((o,i)=>{
+    const b=document.createElement('button');
+    b.className='opt'; b.textContent=o.text;
+    if(i===hideIdx){ b.classList.add('dim'); b.style.visibility="hidden"; }
+    else b.onclick=()=> chestAnswer(o.correct, b);
+    opts.appendChild(b);
+  });
+}
+
+function chestAnswer(correct, btn){
+  recordAnswer(chest.questions[chest.idx], correct);
+  if(correct){ chest.correct++; btn.classList.add('correct'); }
+  else btn.classList.add('wrong');
+  document.getElementById('chestScore').textContent = chest.correct+"/3";
+  chest.idx++;
+  // brief pause then next
+  [...document.getElementById('chestOpts').children].forEach(el=>el.onclick=null);
+  setTimeout(()=>{ if(chest && chest.timeLeft>0) showChestQuestion(); else if(chest) endChest(); }, 240);
+}
+
+function endChest(){
+  if(!chest) return;
+  if(chest.timerId) cancelAnimationFrame(chest.timerId);
+  const correct = chest.correct;
+  const stars = correct>=3?3 : (correct>=1?2:1);
+  document.getElementById('chestOverlay').classList.remove('active');
+  grantLoot(chest.rarity, stars);
+  chest = null;
+}
+
+/* ==========================================================================
+   LOOT GENERATION
+   ========================================================================== */
+const RARITIES = ["common","uncommon","rare","epic","legendary","mythic"];
+const RARITY_MULT = { common:1, uncommon:1.3, rare:1.7, epic:2.4, legendary:3.4, mythic:4.6 };
+const RARITY_ORDER = { common:0, uncommon:1, rare:2, epic:3, legendary:4, mythic:5 };
+const RARITY_AFFIXES = { common:0, uncommon:1, rare:1, epic:2, legendary:3, mythic:4 };
+
+const ITEM_TYPES = ["weapon","armor","helmet","boots","accessory","trinket"];
+const SLOT_ICON = { weapon:"⚔️", armor:"🛡️", helmet:"🪖", boots:"🥾", accessory:"💍", trinket:"🔮" };
+const NAME_BITS = {
+  weapon:{ pre:["Rusty","Iron","Steel","Runed","Dragon","Void","Celestial","Astral"], noun:["Blade","Axe","Saber","Cleaver","Fang","Edge"] },
+  armor:{ pre:["Tattered","Leather","Plated","Guardian","Dragon","Void","Celestial","Astral"], noun:["Vest","Mail","Plate","Aegis","Cuirass","Ward"] },
+  helmet:{ pre:["Dented","Bronze","Knight's","Warded","Dragon","Void","Celestial","Astral"], noun:["Cap","Helm","Hood","Greathelm","Visor","Crown"] },
+  boots:{ pre:["Worn","Traveler's","Soldier's","Swift","Dragon","Void","Celestial","Astral"], noun:["Sandals","Boots","Greaves","Treads","Striders","Warboots"] },
+  accessory:{ pre:["Cracked","Silver","Gilded","Arcane","Dragon","Void","Celestial","Astral"], noun:["Ring","Amulet","Charm","Sigil","Talisman","Band"] },
+  trinket:{ pre:["Chipped","Carved","Blessed","Eldritch","Dragon","Void","Celestial","Astral"], noun:["Idol","Totem","Relic","Orb","Rune","Fetish"] },
+};
+function rint(lo,hi){ return Math.round(lo+Math.random()*(hi-lo)); }
+
+/* Affixes — special modifiers that make gear build-defining, not just bigger numbers */
+const AFFIXES = [
+  {key:"critDmg",  name:"of Ferocity", fmt:v=>`+${v}% Crit Damage`},
+  {key:"lifesteal",name:"of the Leech",fmt:v=>`Lifesteal ${v}%`},
+  {key:"spellPct", name:"of Sorcery",  fmt:v=>`+${v}% Spell Damage`},
+  {key:"warPct",   name:"of War",      fmt:v=>`+${v}% Physical Damage`},
+  {key:"mpReduce", name:"of Focus",    fmt:v=>`−${v} MP Costs`},
+  {key:"goldFind", name:"of Greed",    fmt:v=>`+${v}% Gold Find`},
+  {key:"xpFind",   name:"of Insight",  fmt:v=>`+${v}% XP Gain`},
+  {key:"thorns",   name:"of Thorns",   fmt:v=>`Thorns ${v}`},
+  {key:"regen",    name:"of Renewal",  fmt:v=>`Regenerate ${v} HP/turn`},
+  {key:"chestTime",name:"of Haste",    fmt:v=>`+${v}s Speed Chests`},
+  {key:"maxHpPct", name:"of the Bear", fmt:v=>`+${v}% Max HP`},
+  {key:"maxMpPct", name:"of the Owl",  fmt:v=>`+${v}% Max MP`},
+];
+const AFFIX_MAP = Object.fromEntries(AFFIXES.map(a=>[a.key,a]));
+function rollAffixVal(key){
+  switch(key){
+    case "critDmg": return rint(10,25);
+    case "lifesteal": return rint(3,8);
+    case "spellPct": case "warPct": return rint(8,20);
+    case "mpReduce": return rint(1,4);
+    case "goldFind": return rint(10,30);
+    case "xpFind": return rint(10,25);
+    case "thorns": return rint(3,10);
+    case "regen": return rint(2,6);
+    case "chestTime": return rint(1,3);
+    case "maxHpPct": case "maxMpPct": return rint(5,15);
+    default: return 1;
+  }
+}
+
+/* Named unique items — memorable chase drops with signature effects */
+const UNIQUES = [
+  {name:"Emberfang",         type:"weapon",    rarity:"legendary", affixes:[["warPct",25],["lifesteal",6]],   sig:"Forged in dragonfire — hungers for blood."},
+  {name:"Vampiric Coil",     type:"accessory", rarity:"legendary", affixes:[["lifesteal",10],["warPct",12]],   sig:"Drinks the life of your foes."},
+  {name:"Scholar's Crown",   type:"helmet",    rarity:"legendary", affixes:[["xpFind",25],["chestTime",2]],    sig:"Worn by masters of the old texts."},
+  {name:"Windwalkers",       type:"boots",     rarity:"legendary", affixes:[["critDmg",20],["chestTime",2]],   sig:"Faster than thought."},
+  {name:"Midas Idol",        type:"trinket",   rarity:"legendary", affixes:[["goldFind",30],["xpFind",15]],    sig:"Everything it touches turns to gold."},
+  {name:"Aegis of Ages",     type:"armor",     rarity:"legendary", affixes:[["maxHpPct",15],["thorns",8]],     sig:"It has weathered a thousand sieges."},
+  {name:"Frostbite Edge",    type:"weapon",    rarity:"mythic",    affixes:[["spellPct",30],["critDmg",25]],   sig:"A blade of eternal winter."},
+  {name:"Worldheart Plate",  type:"armor",     rarity:"mythic",    affixes:[["maxHpPct",25],["regen",5],["thorns",10]], sig:"Beats with the pulse of the earth."},
+  {name:"Prism Crown",       type:"helmet",    rarity:"mythic",    affixes:[["xpFind",30],["maxMpPct",20],["critDmg",20]], sig:"Refracts all knowledge into power."},
+  {name:"Chronostone",       type:"trinket",   rarity:"mythic",    affixes:[["chestTime",4],["xpFind",25],["goldFind",25]], sig:"Time itself bends around it."},
+];
+
+function baseStatsFor(type, m, fl, strong){
+  const o={hp:0,mp:0,atk:0,def:0,crit:0};
+  const roll=(lo,hi)=>Math.max(1,Math.round((lo+Math.random()*(hi-lo))*m*fl));
+  const b = strong?1.4:1;
+  if(type==="weapon"){ o.atk=Math.round(roll(4,9)*b); if(strong||Math.random()<0.5) o.crit=rint(2,5)+(strong?3:0); }
+  else if(type==="armor"){ o.def=Math.round(roll(3,7)*b); o.hp=Math.round(roll(8,18)*b); }
+  else if(type==="helmet"){ o.def=Math.round(roll(2,5)*b); o.mp=Math.round(roll(4,10)*b); }
+  else if(type==="boots"){ o.def=Math.round(roll(1,4)*b); o.crit=rint(2,5)+(strong?2:0); o.hp=Math.round(roll(4,10)*b); }
+  else if(type==="accessory"){ o.mp=Math.round(roll(6,14)*b); if(strong||Math.random()<0.6) o.crit=rint(2,6); if(Math.random()<0.4) o.atk=roll(1,4); }
+  else if(type==="trinket"){ o.mp=Math.round(roll(3,8)*b); if(Math.random()<0.5) o.crit=rint(1,4); if(Math.random()<0.4) o.hp=roll(4,10); }
+  return o;
+}
+
+function makeUnique(rarity, floor){
+  if(rarity!=="legendary" && rarity!=="mythic") return null;
+  if(Math.random() > (rarity==="mythic"?0.6:0.25)) return null;
+  const pool = UNIQUES.filter(u=>u.rarity===rarity);
+  if(!pool.length) return null;
+  const u = pool[Math.floor(Math.random()*pool.length)];
+  const m=RARITY_MULT[rarity], fl=1+floor*0.12;
+  const item = Object.assign({ id:S.itemSeq++, name:u.name, type:u.type, rarity, unique:true, sig:u.sig, affixes:u.affixes.map(([key,val])=>({key,val})) }, baseStatsFor(u.type,m,fl,true));
+  return item;
+}
+
+function makeItem(rarity, floor){
+  const uni = makeUnique(rarity, floor);
+  if(uni) return uni;
+  const type = ITEM_TYPES[Math.floor(Math.random()*ITEM_TYPES.length)];
+  const m = RARITY_MULT[rarity], fl = 1 + floor*0.12;
+  const bits = NAME_BITS[type];
+  const rIdx = RARITY_ORDER[rarity];
+  const pre = bits.pre[Math.min(bits.pre.length-1, rIdx + (Math.random()<0.5?0:1))];
+  const noun = bits.noun[Math.floor(Math.random()*bits.noun.length)];
+  const item = Object.assign({ id:S.itemSeq++, name:`${pre} ${noun}`, type, rarity, affixes:[] }, baseStatsFor(type,m,fl,false));
+  // roll affixes
+  const pool = AFFIXES.slice();
+  for(let i=0;i<(RARITY_AFFIXES[rarity]||0) && pool.length;i++){
+    const def = pool.splice(Math.floor(Math.random()*pool.length),1)[0];
+    item.affixes.push({key:def.key, val:rollAffixVal(def.key)});
+  }
+  if(item.affixes.length) item.name += " " + AFFIX_MAP[item.affixes[0].key].name;
+  return item;
+}
+
+/* Aggregate all equipped items' affixes into one totals object */
+function itemMods(){
+  const m = {critDmg:0,lifesteal:0,spellPct:0,warPct:0,mpReduce:0,goldFind:0,xpFind:0,thorns:0,regen:0,chestTime:0,maxHpPct:0,maxMpPct:0};
+  for(const slot of ITEM_TYPES){
+    const it=S.equipped[slot];
+    if(it && it.affixes) it.affixes.forEach(a=>{ if(m[a.key]!==undefined) m[a.key]+=a.val; });
+  }
+  return m;
+}
+
+function grantLoot(rarity, stars){
+  const goldMult = stars; // 1x,2x,3x
+  const baseGold = Math.round((10 + battle.floor*4) * RARITY_MULT[rarity]);
+  let gold = baseGold * goldMult;
+  if(hasBoon("treasure")) gold = Math.round(gold*1.5);   // Treasure Sense boon
+  gold = Math.round(gold * (1 + itemMods().goldFind/100)); // "of Greed" affix
+  if(run && run.expert) gold *= 2;                          // Expert Dungeon: 2× gold
+  S.gold += gold;
+  const dropCount = stars + ((run && run.expert) ? 1 : 0); // Expert: +1 drop
+  const drops = [];
+  for(let i=0;i<dropCount;i++) drops.push(makeItem(rarity, battle.floor));
+  S.inventory.push(...drops);
+  save();
+
+  // show loot modal
+  document.getElementById('lootTitle').textContent = `${rarityIcon(rarity)} ${cap(rarity)} Chest!`;
+  document.getElementById('lootTitle').style.color = `var(--${rarity})`;
+  document.getElementById('lootStars').textContent = "★".repeat(stars) + "☆".repeat(3-stars);
+  // reveal juice: does this drop include something rare?
+  const topRar = drops.reduce((mx,it)=> Math.max(mx, RARITY_ORDER[it.rarity]), 0);
+  const banner = topRar>=5 ? `<div class="loot-banner" style="color:var(--mythic)">✨ MYTHIC FIND! ✨</div>`
+                : topRar>=4 ? `<div class="loot-banner" style="color:var(--legendary)">★ LEGENDARY! ★</div>` : "";
+  let itemsHtml = banner + `<div style="margin-bottom:10px"><b class="pill gold">💰 +${gold} gold</b> <span style="color:var(--muted)">(${goldMult}× multiplier)</span></div>`;
+  itemsHtml += drops.map(it=>`
+    <div class="item rar-${it.rarity} ${RARITY_ORDER[it.rarity]>=4?'loot-hi':''} ${it.rarity==='mythic'?'loot-myth':''}" style="cursor:default; margin-bottom:8px">
+      <span class="rtag" style="color:var(--${it.rarity})">${it.unique?'★ ':''}${it.rarity}</span>
+      <div class="iname">${SLOT_ICON[it.type]||''} ${it.name}</div>
+      <div class="itype">${it.type}</div>
+      <div class="istats">${statLine(it)}</div>
+      ${affixHtml(it)}
+    </div>`).join("");
+
+  // chest-opening animation, then reveal the loot
+  const rc = `var(--${rarity})`;
+  document.getElementById('lootBody').innerHTML = `
+    <div class="chest-stage" id="chestStage">
+      <div class="chest-rays"></div>
+      <svg class="chestsvg" viewBox="0 0 96 84">
+        <rect x="12" y="40" width="72" height="40" rx="7" fill="#6b4a2a" stroke="${rc==='var(--common)'?'#9aa0b5':rc}" stroke-width="3"/>
+        <rect x="12" y="52" width="72" height="10" fill="#4a3320"/>
+        <rect x="42" y="46" width="12" height="20" rx="2" fill="#e0b64a"/>
+        <circle cx="48" cy="56" r="4" fill="#3a2a12"/>
+        <g class="chest-lid">
+          <rect x="12" y="20" width="72" height="26" rx="9" fill="#7d5730" stroke="${rc==='var(--common)'?'#9aa0b5':rc}" stroke-width="3"/>
+          <rect x="12" y="34" width="72" height="8" fill="#5a3f22"/>
+        </g>
+      </svg>
+    </div>
+    <div class="loot-reveal" id="lootReveal">${itemsHtml}</div>`;
+  document.getElementById('lootOverlay').classList.add('active');
+  const stage = document.getElementById('chestStage');
+  requestAnimationFrame(()=> stage.classList.add('shake'));
+  setTimeout(()=>{ stage.classList.add('open'); }, 950);
+  setTimeout(()=>{ const r=document.getElementById('lootReveal'); if(r) r.classList.add('show'); }, 1400);
+}
+
+function closeLoot(){
+  document.getElementById('lootOverlay').classList.remove('active');
+  advanceFloor(battle.floor);   // on to the next room/floor
+}
+
+/* ==========================================================================
+   SHRINE — offer 3 temporary run boons, pick 1.
+   ========================================================================== */
+let shrineCb = null;
+function availableBoons(){ return BOONS.filter(b=> !run.boons.includes(b.key)); }
+function openShrine(cb){
+  shrineCb = cb;
+  const avail = availableBoons();
+  // pick up to 3 distinct
+  const pool = avail.slice();
+  const choices = [];
+  for(let i=0;i<3 && pool.length;i++){
+    choices.push(pool.splice(Math.floor(Math.random()*pool.length),1)[0]);
+  }
+  const wrap = document.getElementById('shrineChoices');
+  wrap.innerHTML = choices.map(b=>`
+    <button class="boon-card ${b.risk?'risk':''}" onclick="pickBoon('${b.key}')">
+      <div class="boon-ico">${b.icon}</div>
+      <div class="boon-name">${b.name}</div>
+      <div class="boon-desc">${b.desc}</div>
+      ${b.risk?'<div class="boon-warn">⚠ high risk / high reward</div>':''}
+    </button>`).join("");
+  document.getElementById('shrineOverlay').classList.add('active');
+}
+function pickBoon(key){
+  if(!run.boons.includes(key)) run.boons.push(key);
+  document.getElementById('shrineOverlay').classList.remove('active');
+  const d = boonDef(key);
+  toast(`${d.icon} Boon gained: ${d.name}`);
+  if(battle) updateHUD();
+  const cb = shrineCb; shrineCb = null;
+  if(cb) cb();
+}
+function skipShrine(){
+  document.getElementById('shrineOverlay').classList.remove('active');
+  toast("Shrine skipped");
+  const cb = shrineCb; shrineCb = null;
+  if(cb) cb();
+}
+function renounceBoon(key){
+  if(!run) return;
+  run.boons = run.boons.filter(k=>k!==key);
+  const d = boonDef(key);
+  toast(`Renounced ${d?d.name:"boon"}`);
+  if(battle) updateHUD();
+  showBoonList();   // refresh the list
+}
+
+/* ==========================================================================
+   INVENTORY  &  EQUIP
+   ========================================================================== */
+function renderInventory(){
+  document.getElementById('invGold').textContent = "💰 "+S.gold;
+  const slots = document.getElementById('equipSlots');
+  slots.innerHTML = ITEM_TYPES.map(type=>{
+    const it = S.equipped[type];
+    if(it){
+      return `<div class="slot rar-${it.rarity}">
+        <div class="lbl">${SLOT_ICON[type]||''} ${type}</div>
+        <div style="font-weight:800; font-size:12px; margin-top:2px; color:var(--${it.rarity})">${it.name}</div>
+        <div class="istats" style="color:var(--green); font-size:11px">${statLine(it)}</div>
+        ${affixHtml(it)}
+        <button class="btn ghost sm" style="margin-top:6px; font-size:11px; padding:4px 8px" onclick="unequip('${type}')">Unequip</button>
+      </div>`;
+    }
+    return `<div class="slot"><div class="lbl">${SLOT_ICON[type]||''} ${type}</div><div style="color:var(--muted); margin-top:6px">— empty —</div></div>`;
+  }).join("");
+
+  const grid = document.getElementById('invGrid');
+  if(S.inventory.length===0){
+    grid.innerHTML = `<div class="empty">No items yet. Clear floors and open chests to find gear!</div>`;
+    return;
+  }
+  // sort: rarity desc then type
+  const sorted = S.inventory.slice().sort((a,b)=> ((RARITY_ORDER[b.rarity]||0)-(RARITY_ORDER[a.rarity]||0)) || a.type.localeCompare(b.type));
+  grid.innerHTML = sorted.map(it=>{
+    const isEq = S.equipped[it.type] && S.equipped[it.type].id===it.id;
+    return `<div class="item rar-${it.rarity} ${it.rarity==='mythic'?'loot-myth':''} ${isEq?'equipped':''}" onclick="equipItem(${it.id})">
+      <span class="rtag" style="color:var(--${it.rarity})">${it.unique?'★ ':''}${it.rarity}</span>
+      <div class="iname">${SLOT_ICON[it.type]||''} ${it.name}</div>
+      <div class="itype">${it.type}</div>
+      <div class="istats">${statLine(it)}</div>
+      ${affixHtml(it)}
+      <div style="margin-top:8px; display:flex; gap:6px">
+        <button class="btn sm" style="flex:1; font-size:11px; padding:5px" onclick="event.stopPropagation(); equipItem(${it.id})">${isEq?'Equipped':'Equip'}</button>
+        <button class="btn ghost sm" style="font-size:11px; padding:5px 8px" onclick="event.stopPropagation(); sellItem(${it.id})">Sell</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function equipItem(id){
+  const it = S.inventory.find(x=>x.id===id);
+  if(!it) return;
+  S.equipped[it.type] = it;
+  save(); renderInventory();
+  toast("Equipped "+it.name);
+}
+function unequip(type){
+  S.equipped[type]=null; save(); renderInventory();
+}
+function itemValue(it){
+  return Math.round(6 * RARITY_MULT[it.rarity] * (1+(it.atk+it.def+it.hp*0.2+it.mp*0.3+it.crit)*0.15));
+}
+function sellItem(id){
+  const it = S.inventory.find(x=>x.id===id);
+  if(!it) return;
+  const val = itemValue(it);
+  msg("Sell "+it.name+"?", `You'll receive <b>💰 ${val} gold</b>. This item will be destroyed.`,
+    [{t:"Cancel", cls:"ghost", fn:closeMsg},
+     {t:"Sell for "+val, cls:"gold", fn:()=>{
+        if(S.equipped[it.type] && S.equipped[it.type].id===id) S.equipped[it.type]=null;
+        S.inventory = S.inventory.filter(x=>x.id!==id);
+        S.gold += val; save(); closeMsg(); renderInventory();
+        toast("+"+val+" gold");
+     }}]);
+}
+function sellJunk(){
+  const junk = S.inventory.filter(it=> it.rarity==="common" && !(S.equipped[it.type] && S.equipped[it.type].id===it.id));
+  if(junk.length===0){ toast("No unequipped Common items to sell"); return; }
+  const total = junk.reduce((s,it)=> s+itemValue(it), 0);
+  msg("Sell "+junk.length+" Common item"+(junk.length!==1?"s":"")+"?",
+    `Sell every unequipped <b>Common</b> item for <b>💰 ${total} gold</b>?<br><small style="color:var(--muted)">Equipped gear and higher rarities are kept.</small>`,
+    [{t:"Cancel", cls:"ghost", fn:closeMsg},
+     {t:"Sell for "+total, cls:"gold", fn:()=>{
+        const ids = new Set(junk.map(j=>j.id));
+        S.inventory = S.inventory.filter(x=> !ids.has(x.id));
+        S.gold += total; save(); closeMsg(); renderInventory();
+        toast("Sold "+junk.length+" items · +"+total+" gold");
+     }}]);
+}
+
+function statLine(it){
+  const parts=[];
+  if(it.atk) parts.push("+"+it.atk+" ATK");
+  if(it.def) parts.push("+"+it.def+" DEF");
+  if(it.hp) parts.push("+"+it.hp+" HP");
+  if(it.mp) parts.push("+"+it.mp+" MP");
+  if(it.crit) parts.push("+"+it.crit+"% Crit");
+  return parts.join(" · ") || "No base stats";
+}
+/* affix + unique-signature display block */
+function affixHtml(it){
+  let lines = "";
+  if(it.affixes && it.affixes.length){
+    lines += it.affixes.map(a=>{ const d=AFFIX_MAP[a.key]; return d? `<span>✦ ${d.fmt(a.val)}</span>` : ""; }).filter(Boolean).join("");
+  }
+  if(it.unique && it.sig) lines += `<span style="color:var(--gold); font-style:italic">“${it.sig}”</span>`;
+  return lines ? `<div class="iaffix">${lines}</div>` : "";
+}
+
+/* ==========================================================================
+   SHOP  (permanent base-stat upgrades)
+   ========================================================================== */
+const SHOP_DEFS = [
+  {key:"hp", name:"Vitality", desc:"+20 Max HP", icon:"❤️", base:40},
+  {key:"mp", name:"Wisdom", desc:"+10 Max MP", icon:"🔷", base:35},
+  {key:"atk",name:"Might", desc:"+4 Attack", icon:"⚔️", base:50},
+  {key:"def",name:"Fortitude", desc:"+3 Defense", icon:"🛡️", base:45},
+];
+function upgradeCost(def){ const n=S.upgrades[def.key]; return Math.round(def.base * Math.pow(1.45, n)); }
+
+function renderShop(){
+  document.getElementById('shopGold').textContent = "💰 "+S.gold;
+  document.getElementById('shopList').innerHTML = SHOP_DEFS.map(def=>{
+    const cost = upgradeCost(def);
+    const lvl = S.upgrades[def.key];
+    const can = S.gold>=cost;
+    return `<div class="shoprow">
+      <div class="info">
+        <b>${def.icon} ${def.name} <span style="color:var(--muted); font-weight:600">Lv.${lvl}</span></b>
+        <small>${def.desc} per level</small>
+      </div>
+      <button class="btn ${can?'gold':'ghost'} sm" ${can?'':'disabled'} onclick="buyUpgrade('${def.key}')">💰 ${cost}</button>
+    </div>`;
+  }).join("");
+}
+function buyUpgrade(key){
+  const def = SHOP_DEFS.find(d=>d.key===key);
+  const cost = upgradeCost(def);
+  if(S.gold<cost){ toast("Not enough gold"); return; }
+  S.gold -= cost;
+  S.upgrades[key]++;
+  save(); renderShop();
+  toast(def.name+" upgraded!");
+}
+
+/* ==========================================================================
+   DECK IMPORT  (Base64 with DS- prefix)
+   ========================================================================== */
+function openImport(){
+  document.getElementById('importText').value="";
+  document.getElementById('importMsg').textContent="";
+  document.getElementById('importOverlay').classList.add('active');
+  updateDeckInfo();
+}
+function closeImport(){ document.getElementById('importOverlay').classList.remove('active'); }
+
+function validQ(x){ return x && typeof x.q==="string" && Array.isArray(x.o) && x.o.length===4 && Number.isInteger(x.a) && x.a>=0 && x.a<4; }
+
+/* Accepts EITHER raw JSON (recommended — reliable) OR a DS- Base64 code.
+   Falls back to per-question recovery so one bad entry can't wipe the deck. */
+function doImport(){
+  let raw = document.getElementById('importText').value.trim();
+  const msgEl = document.getElementById('importMsg');
+  if(!raw){ msgEl.innerHTML="<span style='color:var(--red)'>Paste your questions (JSON) or a DS- code first.</span>"; return; }
+
+  // 1) get the JSON text — decode Base64 only if it's a DS- code
+  let json;
+  if(raw.startsWith("DS-")){
+    try{ json = decodeB64Unicode(raw.slice(3).trim()); }
+    catch(e){ msgEl.innerHTML="<span style='color:var(--red)'>That DS- code is corrupted and can't be decoded.<br>Tip: ask the AI for <b>raw JSON</b> instead of Base64.</span>"; return; }
+  } else {
+    json = raw;  // raw JSON pasted directly
+  }
+
+  // 2) strip code-fences / stray control chars the AI sometimes adds
+  json = json.replace(/^```(?:json)?/i,"").replace(/```$/,"").trim();
+
+  // 3) strict parse first
+  let arr = null;
+  try{ const p = JSON.parse(json); if(Array.isArray(p)) arr = p; }catch(e){}
+
+  // 4) tolerant recovery: pull out individual {...} objects, skip broken ones
+  let recovered = false;
+  if(!arr){
+    arr = [];
+    const matches = json.match(/\{[^{}]*"a"\s*:\s*\d[^{}]*\}/g) || [];
+    matches.forEach(m=>{ try{ const o=JSON.parse(m); arr.push(o); }catch(e){} });
+    recovered = true;
+  }
+
+  const clean = arr.filter(validQ);
+  if(clean.length===0){
+    msgEl.innerHTML = "<span style='color:var(--red)'>No valid questions found. Each needs <b>q</b>, exactly 4 <b>o</b> options, and an <b>a</b> index 0–3.</span>";
+    return;
+  }
+
+  deck = clean; resetBag(); save(); updateDeckInfo();
+  const skipped = (arr.length - clean.length);
+  let note = `✔ Loaded ${clean.length} question${clean.length!==1?'s':''}!`;
+  if(recovered || skipped>0) note += `<br><span style="color:var(--gold)">Note: ${skipped>0?skipped+" malformed entr"+(skipped!==1?"ies":"y")+" skipped. ":""}Some data was corrupted — for best results use raw JSON, not a DS- code.</span>`;
+  msgEl.innerHTML = `<span style='color:var(--green)'>${note}</span>`;
+  toast("Deck loaded: "+clean.length+" questions");
+  setTimeout(()=>{ closeImport(); renderHub(); }, recovered||skipped>0 ? 2200 : 900);
+}
+function loadDefaultDeck(fromModal){
+  deck = DEFAULT_DECK.slice(); resetBag(); save();
+  if(fromModal){ document.getElementById('importMsg').innerHTML="<span style='color:var(--green)'>✔ Default deck loaded (10 questions).</span>"; updateDeckInfo(); toast("Default deck loaded"); }
+  renderHub();
+}
+function updateDeckInfo(){
+  const el=document.getElementById('deckInfo');
+  if(el) el.textContent = `Current deck: ${deck.length} question${deck.length!==1?'s':''}`;
+}
+
+/* ==========================================================================
+   SEE DECK  — Blooket-style preview + per-question stats & deck accuracy
+   ========================================================================== */
+function accClass(pct){ return pct>=80?"acc-good":pct>=50?"acc-mid":"acc-bad"; }
+function renderDeckView(){
+  let totalSeen=0, totalCorrect=0;
+  deck.forEach(q=>{ const s=S.qstats[q.q]; if(s){ totalSeen+=s.seen; totalCorrect+=s.correct; } });
+  const overall = totalSeen? Math.round(totalCorrect/totalSeen*100) : 0;
+  document.getElementById('deckSummary').innerHTML = `
+    <div class="deck-summary">
+      <div class="ds-tile"><div class="big">${deck.length}</div><div class="lbl">Questions</div></div>
+      <div class="ds-tile"><div class="big">${totalSeen}</div><div class="lbl">Answered</div></div>
+      <div class="ds-tile"><div class="big" style="color:var(${totalSeen? (overall>=80?'--green':overall>=50?'--gold':'--red'):'--muted'})">${totalSeen? overall+'%':'—'}</div><div class="lbl">Deck Accuracy</div></div>
+    </div>`;
+  document.getElementById('deckList').innerHTML = deck.map((q,i)=>{
+    const s = S.qstats[q.q];
+    const seen = s? s.seen : 0;
+    const pct = seen? Math.round(s.correct/seen*100) : 0;
+    const accBadge = seen
+      ? `<span class="acc ${accClass(pct)}">${pct}%</span>`
+      : `<span class="acc acc-none">not seen</span>`;
+    const opts = q.o.map((o,oi)=>`<div class="qopt ${oi===q.a?'right':''}">${oi===q.a?'✓ ':''}${escapeHtml(o)}</div>`).join("");
+    return `<div class="qcard">
+      <div class="qhead">
+        <div class="qq"><span class="qnum">${i+1}.</span>${escapeHtml(q.q)}</div>
+        <div class="qstat"><span style="color:var(--muted)">×${seen}</span>${accBadge}</div>
+      </div>
+      <div class="qopts">${opts}</div>
+    </div>`;
+  }).join("");
+}
+function confirmResetStats(){
+  msg("Reset Deck Stats?", "This clears the answer counts and accuracy for every question. Your gold, gear, and levels are untouched.",
+    [{t:"Cancel", cls:"ghost", fn:closeMsg},
+     {t:"Reset Stats", cls:"red", fn:()=>{ S.qstats={}; save(); closeMsg(); renderDeckView(); toast("Deck stats reset."); }}]);
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+/* UTF-8-safe base64 decode */
+function decodeB64Unicode(b64){
+  const bin = atob(b64);
+  const bytes = Uint8Array.from(bin, c=>c.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+/* UTF-8-safe base64 encode */
+function encodeB64Unicode(str){
+  const bytes = new TextEncoder().encode(str);
+  let bin=""; bytes.forEach(b=> bin+=String.fromCharCode(b));
+  return btoa(bin);
+}
+
+/* ==========================================================================
+   ABILITIES / LOADOUT
+   ========================================================================== */
+function renderLoadout(){
+  document.getElementById('loadoutCount').textContent = `${S.loadout.length}/${LOADOUT_SLOTS} equipped`;
+  document.getElementById('loadoutList').innerHTML = ABILITY_ORDER.map(k=>{
+    const a = ACTIONS[k];
+    const known = S.level >= a.lvl;
+    const eq = S.loadout.includes(k);
+    const costTxt = a.cost>0 ? a.cost+" MP" : (a.mpGain? "0 MP · +"+a.mpGain : "0 MP");
+    let btn;
+    if(!known) btn = `<button class="btn ghost sm" disabled>🔒 Lv ${a.lvl}</button>`;
+    else if(eq) btn = `<button class="btn gold sm" onclick="toggleAbility('${k}')">Equipped ✓</button>`;
+    else btn = `<button class="btn sm" onclick="toggleAbility('${k}')">Equip</button>`;
+    return `<div class="abil-card ${eq?'equipped':''} ${known?'':'locked'}">
+      <div class="abil-ico">${a.icon}</div>
+      <div class="abil-info">
+        <div class="abil-name">${a.name} <span class="cost">${costTxt}</span></div>
+        <div class="abil-desc">${a.desc||''}</div>
+      </div>
+      ${btn}
+    </div>`;
+  }).join("");
+}
+function toggleAbility(key){
+  if(S.level < ACTIONS[key].lvl) return;
+  const i = S.loadout.indexOf(key);
+  if(i>=0){
+    if(S.loadout.length<=1){ toast("Keep at least 1 ability equipped"); return; }
+    S.loadout.splice(i,1);
+  } else {
+    if(S.loadout.length>=LOADOUT_SLOTS){ toast(`Loadout full (${LOADOUT_SLOTS}) — remove one first`); return; }
+    S.loadout.push(key);
+  }
+  save(); renderLoadout();
+}
+
+/* ==========================================================================
+   SETTINGS
+   ========================================================================== */
+function openSettings(){ renderSettings(); document.getElementById('settingsOverlay').classList.add('active'); }
+function closeSettings(){ document.getElementById('settingsOverlay').classList.remove('active'); }
+function renderSettings(){
+  const on = !!(S.settings && S.settings.scrambleAnswers);
+  const btn = document.getElementById('scrambleBtn');
+  btn.textContent = on ? "Scrambled" : "Fixed";
+  btn.className = "btn sm " + (on ? "gold" : "ghost");
+  document.getElementById('scrambleDesc').innerHTML = on
+    ? "Wrong answers are pulled randomly from your other questions each time — harder, and stops students memorizing option patterns."
+    : "Each question always shows its own 4 written options (just reordered).";
+}
+function toggleScramble(){
+  if(!S.settings) S.settings={};
+  S.settings.scrambleAnswers = !S.settings.scrambleAnswers;
+  save(); renderSettings();
+  toast(S.settings.scrambleAnswers ? "Answers: Scrambled" : "Answers: Fixed");
+}
+
+/* ==========================================================================
+   SAVE MANAGER — download / copy / import save (move across devices)
+   ========================================================================== */
+function saveCode(){ return "DLS-" + encodeB64Unicode(JSON.stringify({s:S, deck})); }
+
+function openSaveMgr(){
+  document.getElementById('saveImportText').value = "";
+  document.getElementById('saveMsg').textContent = "";
+  const fi = document.getElementById('saveFileInput');
+  fi.value = "";
+  fi.onchange = (e)=>{
+    const f = e.target.files && e.target.files[0];
+    if(!f) return;
+    const r = new FileReader();
+    r.onload = ()=>{
+      document.getElementById('saveImportText').value = String(r.result).trim();
+      document.getElementById('saveMsg').innerHTML = "<span style='color:var(--blue)'>File loaded — now click <b>Load Save</b>.</span>";
+    };
+    r.readAsText(f);
+  };
+  document.getElementById('saveOverlay').classList.add('active');
+}
+function closeSaveMgr(){ document.getElementById('saveOverlay').classList.remove('active'); }
+
+function downloadSave(){
+  try{
+    const code = saveCode();
+    const blob = new Blob([code], {type:"text/plain"});
+    const url = URL.createObjectURL(blob);
+    const d = new Date();
+    const stamp = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+    const a = document.createElement('a');
+    a.href = url; a.download = `dungeon-legends-save-F${S.bestFloor}-${stamp}.txt`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 2000);
+    document.getElementById('saveMsg').innerHTML = "<span style='color:var(--green)'>✔ Save file downloaded.</span>";
+  }catch(e){
+    document.getElementById('saveMsg').innerHTML = "<span style='color:var(--red)'>Download failed on this device — use Copy Save Code instead.</span>";
+  }
+}
+function copySaveCode(){
+  const code = saveCode();
+  const ok = ()=>{ document.getElementById('saveMsg').innerHTML = "<span style='color:var(--green)'>✔ Save code copied — paste it on your other device.</span>"; };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(code).then(ok).catch(()=>fallbackCopy(code, ok));
+  } else fallbackCopy(code, ok);
+}
+function fallbackCopy(text, ok){
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.position="fixed"; ta.style.opacity="0";
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  let done=false; try{ done = document.execCommand('copy'); }catch(e){}
+  ta.remove();
+  if(done) ok();
+  else { document.getElementById('saveImportText').value = text;
+    document.getElementById('saveMsg').innerHTML = "<span style='color:var(--gold)'>Couldn't auto-copy — the code is in the box above; select it and copy manually.</span>"; }
+}
+function importSaveFromText(){
+  const raw = document.getElementById('saveImportText').value.trim();
+  const msgEl = document.getElementById('saveMsg');
+  if(!raw){ msgEl.innerHTML = "<span style='color:var(--red)'>Paste a save code or upload a file first.</span>"; return; }
+  let obj;
+  try{
+    let code = raw;
+    if(code.startsWith("DLS-")) code = code.slice(4).trim();
+    const json = code.startsWith("{") ? code : decodeB64Unicode(code);
+    obj = JSON.parse(json);
+    if(!obj || !obj.s || typeof obj.s !== "object") throw new Error("bad");
+  }catch(e){ msgEl.innerHTML = "<span style='color:var(--red)'>That isn't a valid Dungeon Legends save code.</span>"; return; }
+  const info = `Floor ${obj.s.bestFloor||1} · Level ${obj.s.level||1} · 💰 ${obj.s.gold||0}`;
+  msg("Load this save?", `This replaces your current progress on <b>this device</b> with the imported save:<br><b>${info}</b><br><small style="color:var(--muted)">Your current progress here will be overwritten.</small>`,
+    [{t:"Cancel", cls:"ghost", fn:closeMsg},
+     {t:"Load Save", cls:"gold", fn:()=>{
+        try{
+          localStorage.setItem(SAVE_KEY, JSON.stringify(obj));
+          load(); resetBag();
+        }catch(e){}
+        closeMsg(); closeSaveMgr(); renderHub(); updateDeckInfo();
+        toast("✔ Save loaded!");
+     }}]);
+}
+
+/* ==========================================================================
+   MISC UI HELPERS
+   ========================================================================== */
+function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+function rarityIcon(r){ return {common:"🩶",uncommon:"💚",rare:"🔵",epic:"🟣",legendary:"🟡",mythic:"💎"}[r]||"📦"; }
+function shuffledIndices(n){ const a=[...Array(n).keys()]; for(let i=n-1;i>0;i--){const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]];} return a; }
+
+let toastTimer=null;
+function toast(txt){
+  const t=document.getElementById('toast');
+  t.textContent=txt; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
+function msg(title, body, btns){
+  document.getElementById('msgTitle').textContent=title;
+  document.getElementById('msgBody').innerHTML=body;
+  const bc=document.getElementById('msgBtns'); bc.innerHTML="";
+  btns.forEach(b=>{
+    const el=document.createElement('button');
+    el.className="btn sm "+(b.cls||"");
+    el.textContent=b.t; el.onclick=b.fn;
+    bc.appendChild(el);
+  });
+  document.getElementById('msgOverlay').classList.add('active');
+}
+function closeMsg(){ document.getElementById('msgOverlay').classList.remove('active'); }
+
+function confirmReset(){
+  msg("Reset Everything?", "This permanently erases your gold, gear, upgrades, and progress. This cannot be undone.",
+    [{t:"Cancel", cls:"ghost", fn:closeMsg},
+     {t:"Erase Save", cls:"red", fn:()=>{ localStorage.removeItem(SAVE_KEY); S=freshState(); deck=DEFAULT_DECK.slice(); resetBag(); save(); closeMsg(); renderHub(); toast("Save reset."); }}]);
+}
+
+/* ==========================================================================
+   CANVAS RENDERING
+   ========================================================================== */
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let CW=0, CH=0, DPR=1;
+
+function resizeCanvas(){
+  const wrap = document.getElementById('canvasWrap');
+  const r = wrap.getBoundingClientRect();
+  DPR = Math.min(window.devicePixelRatio||1, 2);
+  CW = r.width; CH = r.height;
+  cv.width = CW*DPR; cv.height = CH*DPR;
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener('resize', ()=>{ if(document.getElementById('dungeon').classList.contains('active')) resizeCanvas(); });
+
+/* ---- floating combat text ---- */
+function addFloat(text, who, kind){
+  const x = who==="hero" ? CW*0.26 : CW*0.74;
+  const y = CH*0.5;
+  const color = kind==="heal" ? getCss('--green') : kind==="mana" ? getCss('--blue') : (kind==="crit"||kind==="gold") ? getCss('--gold') : kind==="dmg" ? getCss('--red') : "#fff";
+  anim.floats.push({text, x:x+(Math.random()*40-20), y, vy:-0.9, life:1, color, size: kind==="crit"?30:22});
+}
+function getCss(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim() || "#fff"; }
+
+/* ---- particles ---- */
+function spawnFireParticles(){
+  const x=CW*0.6, y=CH*0.5;
+  for(let i=0;i<26;i++){
+    const ang=Math.random()*Math.PI*2, sp=1+Math.random()*3.5;
+    anim.particles.push({x,y,vx:Math.cos(ang)*sp+2,vy:Math.sin(ang)*sp,life:1,
+      color:`hsl(${18+Math.random()*24},100%,${50+Math.random()*20}%)`, r:2+Math.random()*4});
+  }
+}
+function spawnSlashParticles(){
+  const x=CW*0.68, y=CH*0.5;
+  for(let i=0;i<14;i++){
+    const ang=(-0.5+Math.random())*1.2, sp=3+Math.random()*4;
+    anim.particles.push({x,y,vx:Math.cos(ang)*sp+1.5,vy:Math.sin(ang)*sp,life:1,color:i%3?'#ff5468':'#ffd1d1',r:2+Math.random()*3});
+  }
+}
+function spawnHealParticles(){
+  const x=CW*0.26, y=CH*0.55;
+  for(let i=0;i<24;i++){
+    anim.particles.push({x:x+(Math.random()*60-30),y:y+20,vx:(Math.random()-0.5)*0.8,vy:-1-Math.random()*1.8,life:1,
+      color:`hsl(${130+Math.random()*40},90%,${55+Math.random()*20}%)`, r:2+Math.random()*3});
+  }
+}
+function spawnManaParticles(){
+  const x=CW*0.26, y=CH*0.55;
+  for(let i=0;i<16;i++){
+    anim.particles.push({x:x+(Math.random()*54-27),y:y+18,vx:(Math.random()-0.5)*0.7,vy:-0.8-Math.random()*1.6,life:1,
+      color:`hsl(${200+Math.random()*30},95%,${58+Math.random()*18}%)`, r:2+Math.random()*3});
+  }
+}
+/* generic colored burst at the enemy (hue-based) — used by Frost/Poison */
+function spawnBurst(hue){
+  const x=CW*0.66, y=CH*0.5;
+  for(let i=0;i<22;i++){
+    const ang=Math.random()*Math.PI*2, sp=1+Math.random()*3.4;
+    anim.particles.push({x,y,vx:Math.cos(ang)*sp+1,vy:Math.sin(ang)*sp,life:1,
+      color:`hsl(${hue+(Math.random()*24-12)},90%,${55+Math.random()*20}%)`, r:2+Math.random()*3.5});
+  }
+}
+
+/* ---- main draw loop ---- */
+let lastFrame = performance.now();
+function loop(ts){
+  const dt = Math.min(50, ts-lastFrame)/16.67; lastFrame=ts;
+  anim.t += dt;
+  // decay
+  ["heroLunge","enemyLunge","enemyHurt","heroHurt"].forEach(k=> anim[k]=Math.max(0,anim[k]-0.08*dt));
+  anim.shake = Math.max(0, anim.shake-0.6*dt);
+
+  if(document.getElementById('dungeon').classList.contains('active') && battle && battle.enemy){
+    draw();
+  }
+  requestAnimationFrame(loop);
+}
+
+function draw(){
+  ctx.clearRect(0,0,CW,CH);
+  const sx = (Math.random()*2-1)*anim.shake;
+  const sy = (Math.random()*2-1)*anim.shake;
+  ctx.save();
+  ctx.translate(sx,sy);
+
+  drawBackground();
+
+  const heroX = CW*0.26 - anim.heroLunge*38;
+  const enemyX = CW*0.74 + anim.enemyLunge*38;
+  const groundY = CH*0.72;
+
+  drawHero(heroX, groundY);
+  drawEnemy(enemyX, groundY, battle.enemy);
+  // burning embers rising off a burning enemy (absolute coords)
+  if(battle.enemy.burn && Math.random()<0.5){
+    anim.particles.push({x:enemyX+(Math.random()*44-22), y:groundY-40-Math.random()*30,
+      vx:(Math.random()-0.5)*0.6, vy:-1-Math.random()*1.2, life:0.7,
+      color:`hsl(${18+Math.random()*22},100%,60%)`, r:2+Math.random()*2});
+  }
+
+  // particles
+  for(let i=anim.particles.length-1;i>=0;i--){
+    const p=anim.particles[i];
+    p.x+=p.vx; p.y+=p.vy; p.vy+=0.06; p.life-=0.02;
+    if(p.life<=0){ anim.particles.splice(i,1); continue; }
+    ctx.globalAlpha=Math.max(0,p.life);
+    ctx.fillStyle=p.color;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha=1;
+
+  // floats
+  for(let i=anim.floats.length-1;i>=0;i--){
+    const f=anim.floats[i];
+    f.y+=f.vy; f.vy*=0.98; f.life-=0.014;
+    if(f.life<=0){ anim.floats.splice(i,1); continue; }
+    ctx.globalAlpha=Math.max(0,f.life);
+    ctx.font=`800 ${f.size}px 'Segoe UI',sans-serif`;
+    ctx.textAlign="center";
+    ctx.lineWidth=4; ctx.strokeStyle="rgba(0,0,0,.7)";
+    ctx.strokeText(f.text,f.x,f.y); ctx.fillStyle=f.color; ctx.fillText(f.text,f.x,f.y);
+  }
+  ctx.globalAlpha=1;
+
+  ctx.restore();
+
+  // UI bars (no shake)
+  drawBars();
+}
+
+function drawBackground(){
+  const biome = biomeFor(battle.floor);
+  // floor gradient (biome themed)
+  const g=ctx.createLinearGradient(0,0,0,CH);
+  g.addColorStop(0,biome.bg[0]); g.addColorStop(0.6,biome.bg[1]); g.addColorStop(1,biome.bg[2]);
+  ctx.fillStyle=g; ctx.fillRect(0,0,CW,CH);
+  // ambient drifting particles (spores / embers / motes)
+  const amb = biome.ambient;
+  for(let i=0;i<amb.n;i++){
+    const sx = (i*137.5) % CW;
+    const drift = Math.sin(anim.t*0.02 + i)*12;
+    const sy = CH - (((anim.t*0.45) + i*47) % (CH+20));
+    const a = 0.12 + 0.12*Math.sin(anim.t*0.08 + i*1.7);
+    ctx.fillStyle = amb.color + Math.max(0,a) + ")";
+    ctx.beginPath(); ctx.arc(sx+drift, sy, 1.5+((i%3)), 0, Math.PI*2); ctx.fill();
+  }
+  // stone floor line
+  const gy=CH*0.72;
+  ctx.fillStyle=biome.floor; ctx.fillRect(0,gy,CW,CH-gy);
+  ctx.strokeStyle=`rgba(${biome.accent},.30)`; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(0,gy); ctx.lineTo(CW,gy); ctx.stroke();
+  // brick hints
+  ctx.strokeStyle=`rgba(${biome.accent},.08)`; ctx.lineWidth=1;
+  for(let x=0;x<CW;x+=48){ ctx.beginPath(); ctx.moveTo(x,gy); ctx.lineTo(x-30,CH); ctx.stroke(); }
+  // torches glow (biome accent)
+  const flick = 0.6+0.4*Math.sin(anim.t*0.3)+ (Math.random()*0.1);
+  for(const tx of [CW*0.1, CW*0.9]){
+    const rg=ctx.createRadialGradient(tx,CH*0.3,4,tx,CH*0.3,120);
+    rg.addColorStop(0,`rgba(${biome.accent},${0.30*flick})`); rg.addColorStop(1,`rgba(${biome.accent},0)`);
+    ctx.fillStyle=rg; ctx.beginPath(); ctx.arc(tx,CH*0.3,120,0,Math.PI*2); ctx.fill();
+  }
+  // enemy name
+  ctx.fillStyle=getCss('--muted'); ctx.font="700 13px 'Segoe UI'"; ctx.textAlign="center";
+  ctx.fillText(battle.enemy.name.toUpperCase()+(battle.enemy.isBoss?" ☠":""), CW*0.74, CH*0.16);
+  ctx.fillStyle=getCss('--muted'); ctx.fillText("HERO", CW*0.26, CH*0.16);
+}
+
+/* ---- Hero sprite (vector knight) ---- */
+function drawHero(x, gy){
+  const bob = Math.sin(anim.t*0.12)*3;
+  const cy = gy-58+bob;
+  ctx.save();
+  ctx.translate(x,cy);
+  const hurt = anim.heroHurt>0.02;
+  // shadow
+  ctx.fillStyle='rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(0,66,32,9,0,0,Math.PI*2); ctx.fill();
+  // legs
+  ctx.fillStyle='#3a4a7a';
+  ctx.fillRect(-14,34,11,30); ctx.fillRect(4,34,11,30);
+  // body armor
+  ctx.fillStyle= hurt? '#8fa9ff' : '#5b78d6';
+  roundRect(-20,-6,40,44,8); ctx.fill();
+  ctx.fillStyle='#7c9cff'; roundRect(-20,-6,40,14,8); ctx.fill();
+  // belt
+  ctx.fillStyle='#2a2154'; ctx.fillRect(-20,26,40,7);
+  // head
+  ctx.fillStyle='#ffd9b3'; ctx.beginPath(); ctx.arc(0,-24,15,0,Math.PI*2); ctx.fill();
+  // helmet
+  ctx.fillStyle='#8895c9'; ctx.beginPath(); ctx.arc(0,-26,15,Math.PI,0); ctx.fill();
+  ctx.fillRect(-15,-26,30,6);
+  ctx.fillStyle='#c9d4ff'; ctx.fillRect(-3,-30,6,14); // plume slot
+  ctx.fillStyle='#ff5468'; ctx.beginPath(); ctx.moveTo(-2,-40); ctx.quadraticCurveTo(8,-46,4,-30); ctx.lineTo(-2,-32); ctx.fill();
+  // eyes
+  ctx.fillStyle='#20304f'; ctx.fillRect(-8,-24,4,3); ctx.fillRect(4,-24,4,3);
+  // sword arm (raises on lunge)
+  const swing = anim.heroLunge*1.1;
+  ctx.save(); ctx.translate(20,4); ctx.rotate(-0.5 - swing);
+  ctx.strokeStyle='#e8e4ff'; ctx.lineWidth=5; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(2,-40); ctx.stroke();
+  ctx.strokeStyle='#c9d4ff'; ctx.lineWidth=8; ctx.beginPath(); ctx.moveTo(-6,2); ctx.lineTo(8,2); ctx.stroke();
+  ctx.restore();
+  // shield arm
+  ctx.fillStyle='#c99b3d'; ctx.beginPath(); ctx.ellipse(-24,10,9,14,0,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle='#8a6a1f'; ctx.lineWidth=2; ctx.stroke();
+  ctx.restore();
+}
+
+/* ---- Enemy sprites (vector) ---- */
+function drawEnemy(x, gy, e){
+  const bob=Math.sin(anim.t*0.1+2)*3;
+  const cy=gy - (e.isBoss? 78:52) + bob;
+  const hurt = anim.enemyHurt>0.02;
+  ctx.save(); ctx.translate(x,cy);
+  ctx.fillStyle='rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(0, e.isBoss?86:60, e.isBoss?44:30, 10,0,0,Math.PI*2); ctx.fill();
+  if(hurt){ ctx.globalAlpha=0.85; }
+  // biome tint recolors the sprite (a slime reads "cave" vs "lava")
+  const biome = biomeFor(battle.floor);
+  if(biome.hue!==0 || biome.sat!==1){ ctx.filter = `hue-rotate(${biome.hue}deg) saturate(${biome.sat})`; }
+  if(e.isBoss) drawBoss(e,hurt);
+  else (ENEMY_DRAW[e.kind] || drawSlime)(hurt);
+  ctx.filter = "none";
+  ctx.restore();
+}
+function drawSlime(hurt){
+  const sq=1+Math.sin(anim.t*0.16)*0.06;
+  ctx.save(); ctx.scale(1/sq,sq);
+  const g=ctx.createRadialGradient(-10,-10,4,0,0,44);
+  g.addColorStop(0, hurt?'#c9ffd9':'#7dffa0'); g.addColorStop(1,'#2fae63');
+  ctx.fillStyle=g; ctx.beginPath();
+  ctx.moveTo(-40,40); ctx.quadraticCurveTo(-46,-30,0,-34); ctx.quadraticCurveTo(46,-30,40,40); ctx.quadraticCurveTo(0,52,-40,40); ctx.fill();
+  ctx.restore();
+  ctx.fillStyle='#0c3a22'; ctx.fillRect(-16,-6,8,10); ctx.fillRect(8,-6,8,10);
+  ctx.fillStyle='#fff'; ctx.fillRect(-14,-4,3,3); ctx.fillRect(10,-4,3,3);
+  ctx.strokeStyle='#0c3a22'; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(0,18,10,0.1*Math.PI,0.9*Math.PI); ctx.stroke();
+}
+function drawBat(hurt){
+  const flap=Math.sin(anim.t*0.5)*0.5;
+  ctx.fillStyle= hurt? '#c9b3ff':'#6a4fb0';
+  // wings
+  ctx.save(); ctx.rotate(-flap); ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(-50,-20,-56,10); ctx.quadraticCurveTo(-30,4,0,16); ctx.fill(); ctx.restore();
+  ctx.save(); ctx.rotate(flap); ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(50,-20,56,10); ctx.quadraticCurveTo(30,4,0,16); ctx.fill(); ctx.restore();
+  // body
+  ctx.fillStyle= hurt? '#e0d4ff':'#2a1f52'; ctx.beginPath(); ctx.ellipse(0,4,18,22,0,0,Math.PI*2); ctx.fill();
+  // ears
+  ctx.beginPath(); ctx.moveTo(-10,-16); ctx.lineTo(-16,-34); ctx.lineTo(-2,-20); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(10,-16); ctx.lineTo(16,-34); ctx.lineTo(2,-20); ctx.fill();
+  ctx.fillStyle='#ff5468'; ctx.beginPath(); ctx.arc(-7,0,3.5,0,Math.PI*2); ctx.arc(7,0,3.5,0,Math.PI*2); ctx.fill();
+}
+function drawOrc(hurt){
+  ctx.fillStyle= hurt? '#c9ffb3':'#6b8f3a';
+  roundRect(-24,-10,48,54,10); ctx.fill();
+  // head
+  ctx.fillStyle= hurt? '#d9ffc9':'#7fa84a'; ctx.beginPath(); ctx.arc(0,-26,18,0,Math.PI*2); ctx.fill();
+  // tusks
+  ctx.fillStyle='#f5f0d5'; ctx.beginPath(); ctx.moveTo(-8,-18); ctx.lineTo(-11,-8); ctx.lineTo(-4,-16); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(8,-18); ctx.lineTo(11,-8); ctx.lineTo(4,-16); ctx.fill();
+  // eyes
+  ctx.fillStyle='#ffcb3d'; ctx.beginPath(); ctx.arc(-7,-28,3,0,Math.PI*2); ctx.arc(7,-28,3,0,Math.PI*2); ctx.fill();
+  // arms
+  ctx.fillStyle= hurt? '#c9ffb3':'#5c7d30'; ctx.fillRect(-34,0,12,30); ctx.fillRect(22,0,12,30);
+  // brow
+  ctx.strokeStyle='#3d5420'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(-12,-34); ctx.lineTo(-2,-31); ctx.moveTo(12,-34); ctx.lineTo(2,-31); ctx.stroke();
+}
+function drawSkeleton(hurt){
+  const body = hurt? '#ffffff':'#e6e6d8';
+  // spine + ribcage
+  ctx.strokeStyle=body; ctx.lineWidth=6; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(0,-8); ctx.lineTo(0,34); ctx.stroke();
+  ctx.lineWidth=4;
+  for(let i=0;i<4;i++){ const y=-2+i*10; ctx.beginPath(); ctx.moveTo(-14,y); ctx.quadraticCurveTo(0,y+6,14,y); ctx.stroke(); }
+  // arms
+  ctx.beginPath(); ctx.moveTo(-2,2); ctx.lineTo(-22,14); ctx.lineTo(-24,32); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(2,2); ctx.lineTo(22,14); ctx.lineTo(24,32); ctx.stroke();
+  // legs
+  ctx.beginPath(); ctx.moveTo(0,34); ctx.lineTo(-12,58); ctx.moveTo(0,34); ctx.lineTo(12,58); ctx.stroke();
+  // skull
+  ctx.fillStyle=body; ctx.beginPath(); ctx.arc(0,-26,17,0,Math.PI*2); ctx.fill();
+  ctx.fillRect(-9,-14,18,8);
+  // eye sockets + nose
+  ctx.fillStyle='#1a1420'; ctx.beginPath(); ctx.arc(-6,-28,5,0,Math.PI*2); ctx.arc(6,-28,5,0,Math.PI*2); ctx.fill();
+  const glow=0.5+0.5*Math.sin(anim.t*0.4);
+  ctx.fillStyle=`rgba(255,84,104,${glow})`; ctx.beginPath(); ctx.arc(-6,-28,2,0,Math.PI*2); ctx.arc(6,-28,2,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#1a1420'; ctx.beginPath(); ctx.moveTo(0,-22); ctx.lineTo(-3,-16); ctx.lineTo(3,-16); ctx.fill();
+  // teeth
+  ctx.fillStyle='#1a1420'; for(let i=-8;i<=6;i+=4) ctx.fillRect(i,-14,2,6);
+}
+function drawSpider(hurt){
+  const body= hurt? '#c9b3ff':'#2a1f3a';
+  const legTip=0.4*Math.sin(anim.t*0.4);
+  // legs (4 each side)
+  ctx.strokeStyle= hurt?'#e0d4ff':'#1a1226'; ctx.lineWidth=4; ctx.lineCap='round';
+  for(let s=-1;s<=1;s+=2){ for(let i=0;i<4;i++){
+    const yy=-6+i*11, kx=s*(18+i*3);
+    ctx.beginPath(); ctx.moveTo(s*10,yy); ctx.lineTo(kx, yy-8+legTip*6*(i-1.5)); ctx.lineTo(kx+s*10, yy+16); ctx.stroke();
+  }}
+  // abdomen
+  ctx.fillStyle=body; ctx.beginPath(); ctx.ellipse(0,14,24,22,0,0,Math.PI*2); ctx.fill();
+  // hourglass mark
+  ctx.fillStyle='#ff5468'; ctx.beginPath(); ctx.moveTo(0,10); ctx.lineTo(-6,4); ctx.lineTo(6,4); ctx.closePath();
+  ctx.moveTo(0,14); ctx.lineTo(-6,22); ctx.lineTo(6,22); ctx.closePath(); ctx.fill();
+  // head
+  ctx.fillStyle=body; ctx.beginPath(); ctx.arc(0,-14,15,0,Math.PI*2); ctx.fill();
+  // eyes cluster
+  ctx.fillStyle='#ff5468';
+  [[-8,-18],[-3,-20],[3,-20],[8,-18],[-5,-13],[5,-13]].forEach(p=>{ ctx.beginPath(); ctx.arc(p[0],p[1],2.4,0,Math.PI*2); ctx.fill(); });
+  // fangs
+  ctx.strokeStyle=hurt?'#e0d4ff':'#1a1226'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(-4,-4); ctx.lineTo(-6,4); ctx.moveTo(4,-4); ctx.lineTo(6,4); ctx.stroke();
+}
+function drawMushroom(hurt){
+  const bob=Math.sin(anim.t*0.14)*2;
+  ctx.save(); ctx.translate(0,bob);
+  // stem
+  ctx.fillStyle= hurt? '#fff6e0':'#f0e6d2'; roundRect(-14,4,28,44,10); ctx.fill();
+  // face on stem
+  ctx.fillStyle='#3a2a1a'; ctx.beginPath(); ctx.arc(-6,22,3,0,Math.PI*2); ctx.arc(6,22,3,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle='#3a2a1a'; ctx.lineWidth=2.5; ctx.beginPath(); ctx.arc(0,30,6,0.1*Math.PI,0.9*Math.PI); ctx.stroke();
+  // cap
+  ctx.fillStyle= hurt? '#ff9aa8':'#d63b52'; ctx.beginPath();
+  ctx.moveTo(-34,6); ctx.quadraticCurveTo(-36,-34,0,-36); ctx.quadraticCurveTo(36,-34,34,6); ctx.quadraticCurveTo(0,16,-34,6); ctx.fill();
+  // spots
+  ctx.fillStyle='rgba(255,240,220,.9)';
+  [[-18,-8,7],[6,-16,9],[20,-2,6],[-4,2,5]].forEach(p=>{ ctx.beginPath(); ctx.arc(p[0],p[1],p[2],0,Math.PI*2); ctx.fill(); });
+  ctx.restore();
+}
+function drawGhost(hurt){
+  const float=Math.sin(anim.t*0.12)*6;
+  ctx.save(); ctx.translate(0,float);
+  ctx.globalAlpha *= 0.82;
+  const g=ctx.createLinearGradient(0,-40,0,44);
+  g.addColorStop(0, hurt? '#eafcff':'#bcd4ff'); g.addColorStop(1,'rgba(120,150,220,0.15)');
+  ctx.fillStyle=g;
+  ctx.beginPath(); ctx.moveTo(-26,40); ctx.quadraticCurveTo(-30,-40,0,-40); ctx.quadraticCurveTo(30,-40,26,40);
+  // wavy tail
+  for(let i=2;i>=-2;i--){ const x=i*13; ctx.quadraticCurveTo(x+6, i%2?52:36, x, 40); }
+  ctx.closePath(); ctx.fill();
+  ctx.globalAlpha /= 0.82;
+  // eyes + mouth
+  ctx.fillStyle='#20304f'; ctx.beginPath(); ctx.ellipse(-9,-14,4,7,0,0,Math.PI*2); ctx.ellipse(9,-14,4,7,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0,2,6,9,0,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+function drawGolem(hurt){
+  const base= hurt? '#c9c2e0':'#5a5570';
+  const dark= hurt? '#b0a8cc':'#413d54';
+  // body blocks
+  ctx.fillStyle=base; roundRect(-30,-14,60,58,8); ctx.fill();
+  ctx.fillStyle=dark; ctx.fillRect(-30,-14,60,8); ctx.fillRect(-6,-6,12,50);
+  // shoulders/arms (big)
+  ctx.fillStyle=base; roundRect(-50,-8,20,40,6); ctx.fill(); roundRect(30,-8,20,40,6); ctx.fill();
+  ctx.fillStyle=dark; ctx.fillRect(-50,20,20,6); ctx.fillRect(30,20,20,6);
+  // head block
+  ctx.fillStyle=base; roundRect(-20,-44,40,32,6); ctx.fill();
+  // glowing cracks / eyes
+  const glow=0.55+0.45*Math.sin(anim.t*0.25);
+  ctx.fillStyle=`rgba(255,160,60,${glow})`;
+  ctx.fillRect(-13,-32,10,5); ctx.fillRect(4,-32,10,5);
+  ctx.strokeStyle=`rgba(255,160,60,${glow*0.8})`; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(-14,2); ctx.lineTo(-4,10); ctx.lineTo(-10,22); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(12,0); ctx.lineTo(6,14); ctx.stroke();
+}
+const ENEMY_DRAW = {
+  slime: drawSlime, bat: drawBat, orc: drawOrc,
+  skeleton: drawSkeleton, spider: drawSpider, mushroom: drawMushroom,
+  ghost: drawGhost, golem: drawGolem,
+};
+function drawBoss(e,hurt){
+  const pulse=1+Math.sin(anim.t*0.2)*0.04;
+  ctx.save(); ctx.scale(pulse,pulse);
+  // aura
+  const rg=ctx.createRadialGradient(0,0,10,0,0,90);
+  rg.addColorStop(0,'rgba(255,84,104,.25)'); rg.addColorStop(1,'rgba(255,84,104,0)');
+  ctx.fillStyle=rg; ctx.beginPath(); ctx.arc(0,0,90,0,Math.PI*2); ctx.fill();
+  // body
+  ctx.fillStyle= hurt? '#ff9aa8':'#5a1f3a'; roundRect(-38,-20,76,78,12); ctx.fill();
+  ctx.fillStyle='#7a2a4f'; roundRect(-38,-20,76,20,12); ctx.fill();
+  // head
+  ctx.fillStyle= hurt? '#ffb3c1':'#40142b'; ctx.beginPath(); ctx.arc(0,-40,26,0,Math.PI*2); ctx.fill();
+  // horns
+  ctx.fillStyle='#e8e0c0';
+  ctx.beginPath(); ctx.moveTo(-22,-52); ctx.quadraticCurveTo(-44,-78,-30,-40); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(22,-52); ctx.quadraticCurveTo(44,-78,30,-40); ctx.fill();
+  // eyes
+  const glow=0.6+0.4*Math.sin(anim.t*0.4);
+  ctx.fillStyle=`rgba(255,203,61,${glow})`; ctx.beginPath(); ctx.arc(-10,-42,5,0,Math.PI*2); ctx.arc(10,-42,5,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#ff5468'; ctx.beginPath(); ctx.arc(-10,-42,2.4,0,Math.PI*2); ctx.arc(10,-42,2.4,0,Math.PI*2); ctx.fill();
+  // mouth
+  ctx.fillStyle='#1a0510'; ctx.beginPath(); ctx.arc(0,-30,10,0,Math.PI); ctx.fill();
+  ctx.fillStyle='#e8e0c0'; for(let i=-8;i<=8;i+=4){ ctx.beginPath(); ctx.moveTo(i,-30); ctx.lineTo(i+2,-24); ctx.lineTo(i+4,-30); ctx.fill(); }
+  // arms with claws
+  ctx.fillStyle= hurt?'#ff9aa8':'#4a1830'; ctx.fillRect(-52,-6,16,44); ctx.fillRect(36,-6,16,44);
+  ctx.fillStyle='#e8e0c0';
+  for(const ax of [-44,44]){ for(let k=-1;k<=1;k++){ ctx.beginPath(); ctx.moveTo(ax+k*6,40); ctx.lineTo(ax+k*6-2,52); ctx.lineTo(ax+k*6+4,42); ctx.fill(); } }
+  ctx.restore();
+}
+
+/* ---- HP/MP bars drawn on canvas ---- */
+function drawBars(){
+  const h=battle.hero, e=battle.enemy;
+  // hero (left)
+  drawBar(CW*0.06, CH*0.83, CW*0.36, h.hp, h.maxHp, '#ff5468', '#8f1f30', "HP");
+  drawBar(CW*0.06, CH*0.90, CW*0.36, h.mp, h.maxMp, '#4db8ff', '#1f5a8f', "MP");
+  // enemy (right)
+  const ex=CW*0.58;
+  drawBar(ex, CH*0.83, CW*0.36, e.hp, e.maxHp, e.isBoss?'#c77dff':'#ff8a3d', e.isBoss?'#5a2a8f':'#8f4a1f', "HP");
+  // enemies remaining pips
+  if(!battle.isBoss){
+    ctx.textAlign="left"; ctx.font="700 11px 'Segoe UI'"; ctx.fillStyle=getCss('--muted');
+    ctx.fillText("Foes: "+"●".repeat(battle.enemiesLeft)+"○".repeat(3-battle.enemiesLeft), ex, CH*0.90+4);
+  }
+}
+function drawBar(x,y,w,val,max,c1,c2,label){
+  const hgt=15, pct=Math.max(0,val/max);
+  ctx.fillStyle='rgba(0,0,0,.55)'; roundRect(x-2,y-2,w+4,hgt+4,5); ctx.fill();
+  ctx.fillStyle='#0d0b1a'; roundRect(x,y,w,hgt,4); ctx.fill();
+  const g=ctx.createLinearGradient(x,y,x,y+hgt); g.addColorStop(0,c1); g.addColorStop(1,c2);
+  ctx.fillStyle=g; roundRect(x,y,w*pct,hgt,4); ctx.fill();
+  ctx.fillStyle='#fff'; ctx.font="800 10px 'Segoe UI'"; ctx.textAlign="left";
+  ctx.fillText(label, x+5, y+11);
+  ctx.textAlign="right"; ctx.fillText(Math.ceil(val)+"/"+max, x+w-5, y+11);
+}
+function roundRect(x,y,w,h,r){
+  r=Math.min(r,w/2,h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+}
+
+/* ==========================================================================
+   BOOT
+   ========================================================================== */
+load();
+renderHub();
+updateDeckInfo();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
