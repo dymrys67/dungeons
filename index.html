@@ -848,8 +848,8 @@ const MOB_BY_KIND = Object.fromEntries(MOBS.map(m=>[m.kind,m]));
 /* Late-game difficulty ramp. =1 through floor 8 (early game unchanged),
    then accelerates so deep floors and bosses stay threatening vs geared heroes.
    HP ramps hardest; damage ramps a bit gentler so it's tough, not one-shotty. */
-function diffHp(f){  return 1 + Math.max(0,f-8)*0.14 + Math.max(0,f-15)*0.20 + Math.max(0,f-25)*0.30; }
-function diffAtk(f){ return 1 + Math.max(0,f-8)*0.07 + Math.max(0,f-15)*0.10 + Math.max(0,f-25)*0.14; }
+function diffHp(f){  return 1 + Math.max(0,f-5)*0.12 + Math.max(0,f-13)*0.18 + Math.max(0,f-23)*0.28; }
+function diffAtk(f){ return 1 + Math.max(0,f-5)*0.07 + Math.max(0,f-13)*0.10 + Math.max(0,f-23)*0.14; }
 
 const ELITE_SPECIALS = {
   frenzied: {prefix:"Frenzied",   note:"double strike every 3rd turn"},
@@ -865,7 +865,7 @@ function makeEnemy(floor, isBoss, idx, elite){
     return {
       name: biome.boss,
       hp, maxHp:hp,
-      atk: Math.round((12 + f*2.6) * diffAtk(f) * exp),
+      atk: Math.round((14 + f*3.0) * diffAtk(f) * exp),
       def: Math.round((4 + f*0.8) * (1 + Math.max(0,f-15)*0.04)),
       isBoss:true, kind:"boss", burn:null, phase:1,
     };
@@ -873,7 +873,7 @@ function makeEnemy(floor, isBoss, idx, elite){
   const kind = biome.roster[Math.floor(Math.random()*biome.roster.length)];
   const m = MOB_BY_KIND[kind] || MOBS[0];
   let hp = Math.round((34 + f*14 + idx*4) * m.hpM * diffHp(f) * exp);
-  let atk = Math.round((7 + f*1.7) * m.atkM * diffAtk(f) * exp);
+  let atk = Math.round((8 + f*2.0) * m.atkM * diffAtk(f) * exp);
   let def = Math.round((2 + f*0.5) * m.defM * (1 + Math.max(0,f-15)*0.03));
   if(elite){
     const keys = Object.keys(ELITE_SPECIALS);
@@ -1016,11 +1016,15 @@ function beginFloor(floor){
   }
 }
 function openRoomChoice(floor){
+  // Rare specials: most floors are just a straight Monster fight; ~1 in 5 offers a choice.
+  let special = null;
+  if(Math.random() < 0.20){
+    const pool = floor>=3 ? ["event","elite"] : ["event"];
+    special = pool[Math.floor(Math.random()*pool.length)];
+  }
+  if(!special){ startCombat(floor, {}); return; }   // plain monster floor — straight into the fight
   showScreen('hub');
-  let cand = ["event"];
-  if(floor>=3) cand.push("elite");
-  for(let i=cand.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [cand[i],cand[j]]=[cand[j],cand[i]]; }
-  const picks = ["monster", ...cand];   // every path is a fight — no healing/shrine skips
+  const picks = ["monster", special];
   document.getElementById('roomTitle').textContent = `Floor ${floor} — Choose Your Path`;
   document.getElementById('roomSub').innerHTML = `${biomeFor(floor).icon} ${biomeLabel(floor)}${run.expert?' · <span style="color:var(--gold)">🔥 Expert</span>':''}`;
   document.getElementById('roomChoices').innerHTML = picks.map(t=>{
@@ -1041,9 +1045,12 @@ function enterRoom(type, floor){
   else if(type==="event") openEvent(floor);
 }
 function startCombat(floor, opts){
+  // Full HP/MP at the start of every battle — no carryover between floors, so
+  // retreating to the hub gives zero advantage. (Persists only across a room's enemies.)
+  run.hero.hp = run.hero.maxHp; run.hero.mp = run.hero.maxMp;
   battle = {
     floor, isBoss:!!opts.boss, elite:!!opts.elite,
-    hero: run.hero,                    // shared → HP/MP persist across the run
+    hero: run.hero,
     enemiesLeft: (opts.boss||opts.elite) ? 1 : 3,
     enemyIdx: 0, enemy: null, busy:false, done:false,
   };
