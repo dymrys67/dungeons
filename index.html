@@ -968,9 +968,9 @@ function startDungeon(floor){
 const ROOMS = {
   monster: {icon:"⚔️", name:"Monster Room",   desc:"A pack of foes — fight for loot."},
   elite:   {icon:"👑", name:"Elite Room",     desc:"One deadly Elite. Guaranteed Rare+ loot."},
-  shrine:  {icon:"🔮", name:"Shrine",         desc:"Claim a temporary run boon."},
-  healing: {icon:"🧪", name:"Healing Spring", desc:"Restore HP & MP."},
-  event:   {icon:"❓", name:"Mystery Room",   desc:"A random encounter — risk & reward."},
+  shrine:  {icon:"🔮", name:"Shrine",         desc:"Claim a boon, then fight."},
+  healing: {icon:"🧪", name:"Healing Spring", desc:"Restore HP & MP, then fight."},
+  event:   {icon:"❓", name:"Mystery Room",   desc:"A random encounter, then fight."},
 };
 function beginFloor(floor){
   if(floor % 5 === 0){
@@ -985,10 +985,10 @@ function beginFloor(floor){
 }
 function openRoomChoice(floor){
   showScreen('hub');
-  let cand = ["shrine","healing","event"];
+  let cand = ["event"];
   if(floor>=3) cand.push("elite");
   for(let i=cand.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [cand[i],cand[j]]=[cand[j],cand[i]]; }
-  const picks = ["monster", cand[0], cand[1]];   // always a fight option + 2 others
+  const picks = ["monster", ...cand];   // every path is a fight — no healing/shrine skips
   document.getElementById('roomTitle').textContent = `Floor ${floor} — Choose Your Path`;
   document.getElementById('roomSub').innerHTML = `${biomeFor(floor).icon} ${biomeLabel(floor)}${run.expert?' · <span style="color:var(--gold)">🔥 Expert</span>':''}`;
   document.getElementById('roomChoices').innerHTML = picks.map(t=>{
@@ -1025,8 +1025,8 @@ function startCombat(floor, opts){
 function shrineRoom(floor){
   showScreen('hub');
   battle = { floor, hero:run.hero };
-  if(availableBoons().length===0){ toast("The shrine lies dormant…"); advanceFloor(floor); return; }
-  openShrine(()=> advanceFloor(floor));
+  if(availableBoons().length===0){ toast("The shrine lies dormant…"); startCombat(floor, {}); return; }
+  openShrine(()=> startCombat(floor, {}));
 }
 function healingRoom(floor){
   showScreen('hub');
@@ -1035,8 +1035,8 @@ function healingRoom(floor){
   const hpBack = Math.round(h.maxHp*0.6), mpBack = Math.round(h.maxMp*0.5);
   h.hp = Math.min(h.maxHp, h.hp+hpBack); h.mp = Math.min(h.maxMp, h.mp+mpBack);
   save();
-  msg("🧪 Healing Spring", `You rest and recover.<br><b style="color:var(--green)">+${hpBack} HP</b> · <b style="color:var(--blue)">+${mpBack} MP</b>`,
-    [{t:"Continue →", cls:"gold", fn:()=>{closeMsg(); advanceFloor(floor);}}]);
+  msg("🧪 Healing Spring", `You rest and recover.<br><b style="color:var(--green)">+${hpBack} HP</b> · <b style="color:var(--blue)">+${mpBack} MP</b><br><span style="color:var(--muted);font-size:13px">A foe still guards the way forward…</span>`,
+    [{t:"⚔️ To the fight →", cls:"gold", fn:()=>{closeMsg(); startCombat(floor, {});}}]);
 }
 function advanceFloor(floor){
   const next = floor+1;
@@ -1079,7 +1079,7 @@ function openEvent(floor){
 function resolveEvent(ev, i, floor){
   const result = ev.choices[i].fn(floor) || "";
   save();
-  msg(ev.title, result, [{t:"Continue →", cls:"gold", fn:()=>{ closeMsg(); advanceFloor(floor); }}]);
+  msg(ev.title, result, [{t:"⚔️ To the fight →", cls:"gold", fn:()=>{ closeMsg(); startCombat(floor, {}); }}]);
 }
 
 /* ---- Expert Dungeon spinner (rare, ~10% at run start) ---- */
