@@ -156,14 +156,14 @@
   .opt.dim{opacity:.4;}
 
   /* timer bar */
-  .timerbar{height:10px; background:#191430; border:1px solid var(--border); border-radius:6px;
+  .timerbar{height:10px; background:#1a110a; border:1px solid var(--border); border-radius:6px;
     overflow:hidden; margin-bottom:12px;}
   .timerbar > div{height:100%; background:linear-gradient(90deg,var(--green),var(--gold),var(--red));
     width:100%; transition:width .1s linear;}
   .starrow{display:flex; gap:6px; justify-content:center; font-size:26px; margin:6px 0;}
 
   /* ===== Inventory / Shop ===== */
-  .fullscreen{background:radial-gradient(900px 600px at 50% 0%, #241c4a, var(--panel));
+  .fullscreen{background:radial-gradient(900px 600px at 50% -5%, rgba(255,150,40,.1), transparent 55%), radial-gradient(900px 600px at 50% 0%, #211811, var(--panel));
     padding:16px; overflow-y:auto;}
   .fs-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
   .fs-head h2{margin:0; color:var(--gold); font-size:22px;}
@@ -203,7 +203,7 @@
   .shoprow .info small{color:var(--muted); display:block; font-size:11px;}
   textarea{width:100%; background:#0d0b1a; color:var(--ink); border:1px solid var(--border); border-radius:8px;
     padding:10px; font-family:monospace; font-size:12px; min-height:90px; resize:vertical;}
-  .toast{position:absolute; bottom:78px; left:50%; transform:translateX(-50%); background:#241c4a;
+  .toast{position:absolute; bottom:78px; left:50%; transform:translateX(-50%); background:linear-gradient(180deg,#2a1e11,#17100a);
     border:1px solid var(--accent); border-radius:10px; padding:10px 16px; font-size:13px; font-weight:700;
     z-index:60; opacity:0; transition:opacity .25s, transform .25s; pointer-events:none; white-space:nowrap;}
   .toast.show{opacity:1; transform:translateX(-50%) translateY(-6px);}
@@ -237,16 +237,24 @@
   /* Talents screen */
   .talent-cols{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; align-items:start;}
   .talent-branch{background:var(--panel2); border:2px solid var(--border); border-radius:12px; padding:12px;}
-  .talent-branch h4{margin:0 0 10px; font-size:14px; text-align:center;}
-  .talent-node{background:#191430; border:2px solid var(--border); border-radius:10px; padding:9px 10px; margin-bottom:9px;
+  .talent-branch h4{margin:0 0 2px; font-size:15px; text-align:center;}
+  .tb-blurb{font-size:10.5px; color:var(--muted); text-align:center; margin:0 0 11px; font-style:italic; min-height:26px;}
+  .talent-node{background:linear-gradient(180deg,#201609,#140d06); border:2px solid var(--border); border-radius:10px; padding:9px 10px; margin-bottom:9px;
     cursor:pointer; transition:.12s;}
-  .talent-node:hover{border-color:var(--accent);}
-  .talent-node.maxed{border-color:var(--green); opacity:.9; cursor:default;}
-  .talent-node.locked{opacity:.45;}
+  .talent-node:hover{border-color:var(--accent); box-shadow:0 0 0 1px var(--gold-deep) inset;}
+  .talent-node.maxed{border-color:var(--green); opacity:.92; cursor:default;}
+  .talent-node.locked{opacity:.42; cursor:not-allowed;}
+  /* Keystone — the build-defining capstone of each branch */
+  .talent-node.keystone{background:linear-gradient(180deg,#2a1d09,#17100a); border-color:var(--gold-deep); box-shadow:0 0 14px -4px rgba(228,189,107,.35);}
+  .talent-node.keystone .tn-name{color:var(--gold-bright) !important;}
+  .talent-node.keystone:not(.locked):not(.maxed){border-color:var(--gold);}
+  .talent-node.keystone.maxed{border-color:var(--gold); box-shadow:0 0 18px -3px rgba(228,189,107,.55);}
+  .talent-node.keystone.locked{box-shadow:none;}
+  .ks-req{display:inline-block; margin-top:4px; color:var(--gold); font-weight:700; font-size:10.5px;}
   .tn-top{display:flex; justify-content:space-between; align-items:center; gap:6px;}
   .tn-name{font-weight:800; font-size:13px;}
   .tn-rank{font-size:11px; color:var(--gold); font-weight:800; white-space:nowrap;}
-  .tn-desc{font-size:11px; color:var(--muted); margin-top:3px;}
+  .tn-desc{font-size:11px; color:var(--muted); margin-top:3px; line-height:1.45;}
   @media(max-width:560px){ .talent-cols{grid-template-columns:1fr;} }
   /* See Deck screen */
   .deck-summary{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:4px;}
@@ -258,14 +266,14 @@
   .qcard .qq{font-weight:800; font-size:15px; color:#fff;}
   .qcard .qnum{font-size:11px; color:var(--muted); font-weight:800; margin-right:6px;}
   .qcard .qopts{display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:9px;}
-  .qopt{font-size:12px; padding:7px 9px; border-radius:8px; background:#191430; border:1px solid var(--border); color:var(--ink);}
+  .qopt{font-size:12px; padding:7px 9px; border-radius:8px; background:#1a110a; border:1px solid var(--border); color:var(--ink);}
   .qopt.right{border-color:var(--green); background:rgba(77,255,160,.16); color:#eafff4; font-weight:700;}
   .qstat{display:flex; gap:12px; align-items:center; white-space:nowrap; font-size:12px; font-weight:800;}
   .qstat .acc{padding:2px 8px; border-radius:10px;}
   .acc-good{color:#04240f; background:var(--green);}
   .acc-mid{color:#3a2600; background:var(--gold);}
   .acc-bad{color:#fff; background:var(--red);}
-  .acc-none{color:var(--muted); background:#191430; border:1px solid var(--border);}
+  .acc-none{color:var(--muted); background:#1a110a; border:1px solid var(--border);}
   @media(max-width:560px){ .deck-summary{grid-template-columns:1fr 1fr;} .qcard .qopts{grid-template-columns:1fr;} }
   /* Settings rows */
   .setting-row{display:flex; align-items:center; gap:12px; background:var(--panel2); border:1px solid var(--border);
@@ -678,24 +686,31 @@ function biomeLabel(floor){
 /* ==========================================================================
    TALENTS — permanent skill tree, 3 branches. rank spent = 1 skill point.
    ========================================================================== */
+// Each branch is a PATH: minor nodes (ranked) that lead to a single build-defining
+// KEYSTONE. A keystone unlocks once you've spent KEYSTONE_REQ points in its branch.
+// Respec is free, so builds are a soft identity you can freely experiment with.
+const KEYSTONE_REQ = 3;
 const TALENTS = {
-  warfare: { name:"⚔️ Warfare", color:"--red", nodes:[
-    {key:"keenEdge",   name:"Keen Edge",    max:3, desc:"+2% Crit chance"},
-    {key:"brutality",  name:"Brutality",    max:1, desc:"Heavy Slash +15% damage"},
-    {key:"battleFocus",name:"Battle Focus", max:1, desc:"Basic Strike restores +4 MP"},
-    {key:"executioner",name:"Executioner",  max:1, desc:"+25% damage vs enemies below 30% HP"},
+  warfare: { name:"⚔️ Warfare", color:"--red", blurb:"Crits, execution & melee bloodlust", nodes:[
+    {key:"keenEdge",   name:"Keen Edge",   max:3, desc:"+3% Crit chance"},
+    {key:"brutality",  name:"Brutality",   max:2, desc:"Heavy Slash +12% damage"},
+    {key:"bloodthirst",name:"Bloodthirst", max:2, desc:"Heal 4% max HP whenever you land a crit"},
+    {key:"executioner",name:"Executioner", max:1, keystone:true,
+      desc:"+40% damage to enemies under 35% HP — and a CRIT under that threshold instantly executes any non-boss foe."},
   ]},
-  sorcery: { name:"🔮 Sorcery", color:"--blue", nodes:[
-    {key:"attunement", name:"Attunement",   max:2, desc:"Spells cost 10% less MP"},
-    {key:"wildfire",   name:"Wildfire",     max:1, desc:"Fireball leaves a burn (damage over time)"},
-    {key:"deepWell",   name:"Deep Well",    max:2, desc:"+15% Max MP"},
-    {key:"overcharge", name:"Overcharge",   max:1, desc:"First spell each fight can't miss"},
+  sorcery: { name:"🔮 Sorcery", color:"--blue", blurb:"Cheaper spells, burning & arcane chains", nodes:[
+    {key:"attunement", name:"Attunement",  max:2, desc:"Spells cost 12% less MP"},
+    {key:"deepWell",   name:"Deep Well",   max:2, desc:"+15% Max MP"},
+    {key:"wildfire",   name:"Wildfire",    max:2, desc:"Fireball leaves a stronger, longer-lasting burn"},
+    {key:"arcaneEcho", name:"Arcane Echo", max:1, keystone:true,
+      desc:"Your first spell each fight can't miss — and every spell has a 35% chance to echo, casting a second time for free."},
   ]},
-  scholar: { name:"📖 Scholar", color:"--green", nodes:[
-    {key:"fortitude",  name:"Fortitude",    max:3, desc:"+12% Max HP"},
-    {key:"studyBuffer",name:"Study Buffer", max:2, desc:"+1.5s on Speed Chests"},
-    {key:"insight",    name:"Insight",      max:1, desc:"25% chance to hide a wrong answer on chest questions"},
-    {key:"secondWind", name:"Second Wind",  max:1, desc:"Once per run, survive a lethal hit at 25% HP"},
+  scholar: { name:"📖 Scholar", color:"--green", blurb:"Survival, study tools & knowledge-shields", nodes:[
+    {key:"fortitude",  name:"Fortitude",   max:3, desc:"+12% Max HP"},
+    {key:"studyBuffer",name:"Study Buffer",max:2, desc:"+1.5s on Speed Chests & better odds to hide a wrong answer"},
+    {key:"battleFocus",name:"Battle Focus",max:2, desc:"Basic Strike restores +4 MP"},
+    {key:"aegis",      name:"Scholar's Aegis", max:1, keystone:true,
+      desc:"Every correct answer raises a ward that soaks 30% of the next hit — and once per run you survive a lethal blow at 30% HP."},
   ]},
 };
 function talentRank(key){ return (S.talents && S.talents[key]) || 0; }
@@ -704,6 +719,12 @@ function talentDef(key){
   return null;
 }
 function talentSpent(){ return Object.values(S.talents||{}).reduce((a,b)=>a+b,0); }
+// Points spent in a branch's MINOR nodes (keystones don't count toward their own unlock).
+function branchSpent(bkey){
+  const br = TALENTS[bkey]; if(!br) return 0;
+  return br.nodes.reduce((a,n)=> a + (n.keystone?0:talentRank(n.key)), 0);
+}
+function keystoneUnlocked(bkey){ return branchSpent(bkey) >= KEYSTONE_REQ; }
 
 /* ==========================================================================
    RUN BOONS — temporary buffs picked at Shrines; live on `run`, never saved.
@@ -778,7 +799,7 @@ function derived(){
   hp = Math.round(hp * (1 + im.maxHpPct/100));
   mp = Math.round(mp * (1 + im.maxMpPct/100));
   // --- Talents (permanent) ---
-  crit += talentRank("keenEdge")*2;
+  crit += talentRank("keenEdge")*3;
   hp = Math.round(hp * (1 + talentRank("fortitude")*0.12));
   mp = Math.round(mp * (1 + talentRank("deepWell")*0.15));
   // --- Run boons (temporary) ---
@@ -802,6 +823,11 @@ function hydrateSave(p){
   S.upgrades = Object.assign(freshState().upgrades, S.upgrades||{});
   S.equipped = Object.assign({weapon:null,armor:null,helmet:null,boots:null,accessory:null,trinket:null}, S.equipped||{});
   S.talents = Object.assign({}, S.talents||{});
+  // Migrate retired talent keys (pre-keystone tree): refund their points so nothing is lost.
+  const RETIRED_TALENTS = ["overcharge","insight","secondWind"];
+  for(const k of RETIRED_TALENTS){
+    if(S.talents[k]){ S.skillPoints = (S.skillPoints||0) + S.talents[k]; delete S.talents[k]; }
+  }
   S.qstats = Object.assign({}, S.qstats||{});
   S.settings = Object.assign({scrambleAnswers:false}, S.settings||{});
   if(!Array.isArray(S.loadout) || !S.loadout.length) S.loadout = ["strike","slash","fireball","heal"];
@@ -929,22 +955,32 @@ function renderTalents(){
   document.getElementById('talPoints').textContent = S.skillPoints + " point" + (S.skillPoints!==1?"s":"");
   const cols = document.getElementById('talentCols');
   cols.innerHTML = Object.entries(TALENTS).map(([bkey,br])=>{
+    const spent = branchSpent(bkey);
     const nodes = br.nodes.map((n,i)=>{
       const rank = talentRank(n.key);
       const maxed = rank>=n.max;
-      // a node unlocks once the previous node in the branch has ≥1 rank
-      const prev = i>0 ? br.nodes[i-1] : null;
-      const locked = prev ? talentRank(prev.key)<1 : false;
+      let locked;
+      if(n.keystone){
+        // keystone unlocks once enough points are invested in this branch's path
+        locked = !keystoneUnlocked(bkey);
+      } else {
+        // a minor node unlocks once the previous minor node has ≥1 rank
+        const prev = i>0 ? br.nodes[i-1] : null;
+        locked = prev ? talentRank(prev.key)<1 : false;
+      }
       const canBuy = !maxed && !locked && S.skillPoints>0;
-      const cls = maxed? "maxed" : (locked? "locked" : "");
+      const cls = (n.keystone?"keystone ":"") + (maxed? "maxed" : (locked? "locked" : ""));
       const onclick = canBuy ? `onclick="buyTalent('${n.key}')"` : "";
+      const lockNote = (n.keystone && locked) ? ` <span class="ks-req">🔒 ${spent}/${KEYSTONE_REQ} pts in branch</span>` : "";
+      const rankTag = maxed? " ✓" : (locked? " 🔒" : (canBuy? " +" : ""));
       return `<div class="talent-node ${cls}" ${onclick}>
-        <div class="tn-top"><span class="tn-name" style="color:var(${br.color})">${n.name}</span>
-          <span class="tn-rank">${rank}/${n.max}${maxed?" ✓":(locked?" 🔒":(canBuy?" +":""))}</span></div>
-        <div class="tn-desc">${n.desc}${n.max>1?` <span style="color:var(--muted)">(per rank)</span>`:''}</div>
+        <div class="tn-top"><span class="tn-name" style="color:var(${br.color})">${n.keystone?"★ ":""}${n.name}</span>
+          <span class="tn-rank">${rank}/${n.max}${rankTag}</span></div>
+        <div class="tn-desc">${n.desc}${(!n.keystone && n.max>1)?` <span style="color:var(--muted)">(per rank)</span>`:''}${lockNote}</div>
       </div>`;
     }).join("");
-    return `<div class="talent-branch"><h4 style="color:var(${br.color})">${br.name}</h4>${nodes}</div>`;
+    return `<div class="talent-branch"><h4 style="color:var(${br.color})">${br.name}</h4>
+      <div class="tb-blurb">${br.blurb}</div>${nodes}</div>`;
   }).join("");
 }
 function buyTalent(key){
@@ -1149,6 +1185,7 @@ function spawnNextEnemy(){
   battle.freeMissUsed = false;
   battle.missedThisFight = false;
   battle.brace = false;
+  battle.aegis = false;
   // Overflow boon: start every fight at full MP
   if(hasBoon("overflow")) battle.hero.mp = battle.hero.maxMp;
   const e = battle.enemy;
@@ -1181,7 +1218,7 @@ function updateHUD(){
 function effectiveCost(actKey){
   let c = ACTIONS[actKey].cost;
   if(c<=0) return 0;
-  c *= (1 - talentRank("attunement")*0.10);
+  c *= (1 - talentRank("attunement")*0.12);
   if(hasBoon("arcaneSurge") && ACTIONS[actKey].type!=="phys") c *= 1.5;
   c -= itemMods().mpReduce;   // "of Focus" affix
   return Math.max(0, Math.round(c));
@@ -1345,10 +1382,10 @@ function resolveAction(correct){
 
   // ---- wrong answer, with possible "saves" ----
   if(!correct){
-    // Overcharge talent: first spell each fight lands anyway
-    if(isSpell(a) && talentRank("overcharge") && !battle.overchargeUsed){
+    // Arcane Echo keystone: first spell each fight lands anyway
+    if(isSpell(a) && talentRank("arcaneEcho") && !battle.overchargeUsed){
       battle.overchargeUsed = true;
-      toast("⚡ Overcharge — the spell lands anyway!");
+      toast("⚡ Arcane Echo — the spell lands anyway!");
       correct = true;
     } else {
       if(run) run.momentum = 0;            // a miss breaks Momentum
@@ -1375,6 +1412,8 @@ function resolveAction(correct){
   if(hasBoon("vampiric") && h.hp < h.maxHp){
     const v = Math.min(8, h.maxHp - h.hp); h.hp += v; addFloat("+"+v, "hero", "heal");
   }
+  // Scholar's Aegis keystone: every correct answer raises a ward over the next hit
+  if(talentRank("aegis") && !battle.aegis){ battle.aegis = true; addFloat("🛡️ WARD","hero","mana"); }
 
   if(a.type==="focus"){
     const mpBack = Math.round(h.maxMp * 0.40);
@@ -1401,20 +1440,30 @@ function resolveAction(correct){
   const im = itemMods();
   const isCrit = Math.random()*100 < h.crit;
   let mult = a.mult;
-  if(pendingAction==="slash" && talentRank("brutality")) mult *= 1.15;   // Brutality
+  if(pendingAction==="slash" && talentRank("brutality")) mult *= (1 + talentRank("brutality")*0.12); // Brutality
   if(isSpell(a) && hasBoon("arcaneSurge")) mult *= 1.5;                   // Arcane Surge
   if(hasBoon("bloodlust")) mult *= 1.30;                                 // Bloodlust
   if(run && run.momentum) mult *= (1 + run.momentum*0.10);               // Momentum
   if(a.type==="phys") mult *= (1 + im.warPct/100);                       // "of War" affix
   else mult *= (1 + im.spellPct/100);                                    // "of Sorcery" affix (fire/frost/poison)
   let dmg = Math.max(1, Math.round((h.atk*mult - e.def*0.6) * (0.9+Math.random()*0.2)));
-  if(e.hp < e.maxHp*0.30 && talentRank("executioner")) dmg = Math.round(dmg*1.25); // Executioner
+  const execLow = e.hp < e.maxHp*0.35;                                   // enemy in Executioner range (pre-hit)
+  if(execLow && talentRank("executioner")) dmg = Math.round(dmg*1.40);   // Executioner keystone
   if(isCrit) dmg = Math.round(dmg*(1.5 + im.critDmg/100));               // "of Ferocity" affix
   if(e.special==="armored") dmg = Math.max(1, Math.round(dmg*0.7));      // Armored elite
   setTimeout(()=>{
     e.hp = Math.max(0, e.hp - dmg);
     anim.enemyHurt = 1; anim.shake = isCrit? 10:5;
     addFloat((isCrit? "CRIT ":"")+dmg, "enemy", isCrit? "crit":"dmg");
+    // Executioner keystone: a crit on a weakened foe executes it outright (never bosses)
+    if(execLow && isCrit && talentRank("executioner") && !e.isBoss && e.hp>0){
+      e.hp = 0; addFloat("☠ EXECUTE!","enemy","crit");
+    }
+    // Bloodthirst: landing a crit heals you
+    if(isCrit && talentRank("bloodthirst") && h.hp<h.maxHp){
+      const bt = Math.round(h.maxHp*0.04*talentRank("bloodthirst"));
+      const g = Math.min(bt, h.maxHp-h.hp); if(g>0){ h.hp += g; addFloat("+"+g, "hero", "heal"); }
+    }
     if(a.type==="phys") spawnSlashParticles();
     else if(a.type==="frost") spawnBurst(200);
     else if(a.type==="poison") spawnBurst(110);
@@ -1428,9 +1477,10 @@ function resolveAction(correct){
       const ls = Math.max(1, Math.round(dmg*im.lifesteal/100));
       h.hp = Math.min(h.maxHp, h.hp+ls); addFloat("+"+ls, "hero", "heal");
     }
-    // Wildfire talent: Fireball leaves a burn
+    // Wildfire talent: Fireball leaves a burn (stronger & longer with rank)
     if(a.type==="fire" && talentRank("wildfire")){
-      e.burn = { dmg: Math.max(2, Math.round(h.atk*0.4)), turns:3 };
+      const wr = talentRank("wildfire");
+      e.burn = { dmg: Math.max(2, Math.round(h.atk*(0.3+0.2*wr))), turns:2+wr };
       toast("🔥 Enemy is burning!");
     }
     // Basic Strike channels mana back (+ Battle Focus talent)
@@ -1438,6 +1488,17 @@ function resolveAction(correct){
       let gain = a.mpGain + talentRank("battleFocus")*4;
       gain = Math.min(gain, h.maxMp - h.mp);
       if(gain>0){ h.mp += gain; addFloat("+"+gain+" MP", "hero", "mana"); spawnManaParticles(); }
+    }
+    // Arcane Echo keystone: a spell may echo, striking a second time for free
+    if(isSpell(a) && talentRank("arcaneEcho") && e.hp>0 && Math.random()<0.35){
+      let edmg = Math.max(1, Math.round((h.atk*mult - e.def*0.6) * (0.9+Math.random()*0.2)));
+      const eCrit = Math.random()*100 < h.crit;
+      if(eCrit) edmg = Math.round(edmg*(1.5 + im.critDmg/100));
+      if(e.special==="armored") edmg = Math.max(1, Math.round(edmg*0.7));
+      e.hp = Math.max(0, e.hp - edmg);
+      anim.enemyHurt = 1; anim.shake = Math.max(anim.shake||0, 8);
+      addFloat("🔮 "+(eCrit?"CRIT ":"")+edmg, "enemy", eCrit?"crit":"dmg");
+      toast("🔮 Arcane Echo!");
     }
     afterHeroAct();
   }, 240);
@@ -1508,6 +1569,7 @@ function enemyTurn(fromMisfire){
   if(e.special==="frenzied"){ e.turnCount=(e.turnCount||0)+1; if(e.turnCount%3===0){ base*=1.9; frenzy=true; } }
   let dmg = Math.max(1, Math.round((base - h.def*0.7) * (0.9+Math.random()*0.25)));
   if(battle.brace){ dmg = Math.round(dmg*0.5); battle.brace=false; }  // Focus brace
+  if(battle.aegis){ dmg = Math.round(dmg*0.7); battle.aegis=false; }  // Scholar's Aegis ward
   if(hasBoon("glassCannon")) dmg = Math.round(dmg*1.25);   // Glass Cannon downside
   if(frenzy) toast("⚡ Frenzied double strike!");
   setTimeout(()=>{
@@ -1516,13 +1578,13 @@ function enemyTurn(fromMisfire){
     addFloat("-"+dmg, "hero", "dmg");
     // Vampiric elite: heals itself when it hits you
     if(e.special==="vampiric"){ const hl=Math.round(dmg*0.3); e.hp=Math.min(e.maxHp, e.hp+hl); addFloat("+"+hl,"enemy","heal"); }
-    // Second Wind talent: survive one lethal hit per run at 25% HP
-    if(h.hp<=0 && talentRank("secondWind") && run && !run.secondWindUsed){
+    // Scholar's Aegis keystone: survive one lethal hit per run at 30% HP
+    if(h.hp<=0 && talentRank("aegis") && run && !run.secondWindUsed){
       run.secondWindUsed = true;
-      h.hp = Math.round(h.maxHp*0.25);
-      addFloat("SECOND WIND!", "hero", "gold");
+      h.hp = Math.round(h.maxHp*0.30);
+      addFloat("AEGIS!", "hero", "gold");
       spawnHealParticles();
-      toast("🛡️ Second Wind saved you!");
+      toast("🛡️ Scholar's Aegis saved you!");
     }
     if(h.hp<=0){ save(); updateHUD(); setTimeout(heroDied, 600); return; }
     // Thorns affix ("of Thorns") — reflect damage back at the attacker
@@ -1635,9 +1697,10 @@ function showChestQuestion(){
   const opts = document.getElementById('chestOpts');
   opts.innerHTML="";
   const built = buildOptions(q);
-  // Insight talent: 25% chance to hide one wrong option
+  // Study Buffer talent: chance to hide one wrong option (better odds with rank)
   let hideIdx = -1;
-  if(talentRank("insight") && Math.random()<0.25){
+  const sbRank = talentRank("studyBuffer");
+  if(sbRank && Math.random() < (0.10 + sbRank*0.15)){
     const wrongs = built.map((o,i)=>o.correct?-1:i).filter(i=>i>=0);
     if(wrongs.length) hideIdx = wrongs[Math.floor(Math.random()*wrongs.length)];
   }
