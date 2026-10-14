@@ -275,6 +275,26 @@
   .acc-bad{color:#fff; background:var(--red);}
   .acc-none{color:var(--muted); background:#1a110a; border:1px solid var(--border);}
   @media(max-width:560px){ .deck-summary{grid-template-columns:1fr 1fr;} .qcard .qopts{grid-template-columns:1fr;} }
+  /* Decks library screen */
+  .deckrow{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+    background:linear-gradient(180deg,#201609,#140d06); border:2px solid var(--border); border-radius:12px; padding:12px 14px; margin-bottom:10px;}
+  .deckrow.active{border-color:var(--gold); box-shadow:0 0 14px -4px rgba(228,189,107,.4);}
+  .deckrow-main{min-width:0;}
+  .deckrow-name{font-weight:800; font-size:15px; color:var(--ink); display:flex; align-items:center; gap:8px;}
+  .deckrow-sub{font-size:12px; color:var(--muted); margin-top:2px;}
+  .deck-badge{font-size:10px; font-weight:900; letter-spacing:.08em; color:var(--gold-deep); background:var(--gold);
+    padding:2px 7px; border-radius:6px;}
+  .deckrow-btns{display:flex; gap:6px; flex-wrap:wrap; align-items:center;}
+  .deckrow-using{font-size:12px; font-weight:800; color:var(--green);}
+  /* Import overlay — name field + mode tabs */
+  .deck-name-in{width:100%; box-sizing:border-box; padding:10px 12px; margin-bottom:10px; border-radius:10px;
+    background:#1a110a; border:1px solid var(--border); color:var(--ink); font-size:14px; font-family:var(--font-body);}
+  .imp-modes{display:flex; gap:8px; margin-bottom:10px;}
+  .imp-mode{flex:1; padding:8px 10px; border-radius:10px; cursor:pointer; font-weight:800; font-size:13px;
+    background:#1a110a; border:1px solid var(--border); color:var(--muted); font-family:var(--font-body);}
+  .imp-mode.active{border-color:var(--gold); color:var(--gold-bright); background:#2a1d09;}
+  .imp-sep{font-size:11px; color:var(--muted); display:flex; flex-direction:column; gap:4px;}
+  .imp-sep select{padding:6px 8px; border-radius:8px; background:#1a110a; border:1px solid var(--border); color:var(--ink); font-family:var(--font-body);}
   /* Settings rows */
   .setting-row{display:flex; align-items:center; gap:12px; background:var(--panel2); border:1px solid var(--border);
     border-radius:10px; padding:12px 14px;}
@@ -383,7 +403,7 @@
       <button class="btn ghost" onclick="showScreen('inventory'); renderInventory()">🎒 Inventory</button>
       <button class="btn ghost" onclick="showScreen('shop'); renderShop()">💰 Upgrade Shop</button>
       <button class="btn ghost" onclick="showScreen('deckview'); renderDeckView()">📖 See Deck</button>
-      <button class="btn ghost" onclick="openImport()">📥 Import Deck</button>
+      <button class="btn ghost" onclick="showScreen('decks'); renderDecks()">🗂 My Decks</button>
       <button class="btn ghost" onclick="openSettings()">⚙️ Settings</button>
     </div>
     <div class="hint" id="deckInfo"></div>
@@ -465,6 +485,19 @@
     <div id="deckList" style="margin-top:12px"></div>
   </div>
 
+  <!-- ============ DECKS (library) SCREEN ============ -->
+  <div class="screen fullscreen" id="decks">
+    <div class="fs-head">
+      <h2>🗂 My Decks</h2>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end">
+        <button class="btn gold sm" onclick="openImport()">＋ New Deck</button>
+        <button class="btn ghost sm" onclick="backToHub()">← Hub</button>
+      </div>
+    </div>
+    <div class="banner">Keep a deck per class and switch between them. The <b>active</b> deck is what you study in the dungeon.</div>
+    <div id="deckMgrList" style="margin-top:14px"></div>
+  </div>
+
   <!-- ============ TALENTS SCREEN ============ -->
   <div class="screen fullscreen" id="talents">
     <div class="fs-head">
@@ -520,14 +553,27 @@
 
   <div class="overlay" id="importOverlay">
     <div class="modal">
-      <h2>📥 Import Study Deck</h2>
-      <div class="qmeta"><span>Paste your questions as <b>JSON</b> (recommended) or a <b>DS-</b> code.</span></div>
+      <h2>📥 New Study Deck</h2>
+      <input id="importName" class="deck-name-in" maxlength="40" placeholder="Deck name (e.g. Bio — Chapter 4)" />
+      <div class="imp-modes">
+        <button class="imp-mode active" data-mode="json" onclick="setImportMode('json')">JSON / DS- code</button>
+        <button class="imp-mode" data-mode="quizlet" onclick="setImportMode('quizlet')">Quizlet export</button>
+      </div>
+      <div class="qmeta" id="impJsonHelp"><span>Paste your questions as <b>JSON</b> (recommended) or a <b>DS-</b> code.</span></div>
+      <div class="qmeta" id="impQuizletHelp" style="display:none"><span>In Quizlet open your set → <b>⋯ → Export</b> → copy, then paste below. Each term/definition becomes a question.</span></div>
+      <div id="impQuizletOpts" style="display:none; gap:12px; margin:8px 0; flex-wrap:wrap">
+        <label class="imp-sep">Term/definition split
+          <select id="qzTermSep"><option value="tab">Tab (default)</option><option value="dash">Dash ( - )</option><option value="comma">Comma</option></select>
+        </label>
+        <label class="imp-sep">Between cards
+          <select id="qzCardSep"><option value="nl">New line (default)</option><option value="semi">Semicolon</option></select>
+        </label>
+      </div>
       <textarea id="importText" placeholder='Paste JSON like:  [{"q":"...","o":["A","B","C","D"],"a":0}, ...]   — or a DS- code'></textarea>
       <div class="hint" id="importMsg"></div>
       <div style="display:flex; gap:8px; margin-top:12px; justify-content:flex-end">
         <button class="btn ghost sm" onclick="closeImport()">Cancel</button>
-        <button class="btn ghost sm" onclick="loadDefaultDeck(true)">Use Default</button>
-        <button class="btn sm" onclick="doImport()">Load Deck</button>
+        <button class="btn sm" onclick="doImport()">Create Deck</button>
       </div>
     </div>
   </div>
@@ -644,6 +690,8 @@ function freshState(){
     skillPoints: 0,
     talents: {},          // { nodeKey: rank }
     qstats: {},           // { questionText: {seen, correct} }
+    decks: null,          // deck library — built by ensureDeckLibrary() (migrates legacy single decks)
+    activeDeckId: null,
     settings: { scrambleAnswers:false }, // answer-option mode
     loadout: ["strike","slash","fireball","heal"], // equipped abilities
 
@@ -653,6 +701,95 @@ function freshState(){
     inventory:[],
     itemSeq: 1,
   };
+}
+
+/* ==========================================================================
+   DECK LIBRARY — multiple named decks per account; `deck` (the live global)
+   always points at the active deck's `cards`, so combat/See-Deck code is
+   untouched. Decks live in S.decks, so they sync to cloud + offline saves.
+   ========================================================================== */
+function newDeckId(){ return 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+function activeDeck(){
+  if(!S || !Array.isArray(S.decks) || !S.decks.length) return null;
+  return S.decks.find(d=>d.id===S.activeDeckId) || S.decks[0];
+}
+function syncActiveDeck(){ const d=activeDeck(); deck = d ? d.cards : DEFAULT_DECK.slice(); }
+// Normalize S.decks into a valid library and pick a valid active deck.
+function ensureDeckLibrary(legacyDeck){
+  if(!Array.isArray(S.decks) || !S.decks.length){
+    const legacy = (legacyDeck && legacyDeck.length) ? legacyDeck.filter(validQ)
+                 : (Array.isArray(S.deck) && S.deck.length ? S.deck.filter(validQ) : DEFAULT_DECK.slice());
+    S.decks = [{ id:newDeckId(), name:"My Deck", cards: legacy.length?legacy:DEFAULT_DECK.slice() }];
+  }
+  S.decks = S.decks
+    .filter(d=>d && Array.isArray(d.cards))
+    .map(d=>({ id:d.id||newDeckId(), name:String(d.name||"Deck").slice(0,60), cards:d.cards.filter(validQ) }))
+    .filter(d=>d.cards.length);
+  if(!S.decks.length) S.decks = [{ id:newDeckId(), name:"Default Deck", cards:DEFAULT_DECK.slice() }];
+  if(!S.activeDeckId || !S.decks.some(d=>d.id===S.activeDeckId)) S.activeDeckId = S.decks[0].id;
+  delete S.deck;
+  syncActiveDeck();
+}
+function switchDeck(id){
+  if(!S.decks.some(d=>d.id===id)) return;
+  S.activeDeckId = id; syncActiveDeck(); resetBag(); save();
+  toast("Now studying: "+activeDeck().name);
+  renderDecks(); renderHub();
+}
+function renameDeckPrompt(id){
+  const d = S.decks.find(x=>x.id===id); if(!d) return;
+  const name = prompt("Rename deck:", d.name);
+  if(name===null) return;
+  d.name = String(name).trim().slice(0,60) || d.name;
+  save(); renderDecks(); renderHub();
+}
+function deleteDeckConfirm(id){
+  const d = S.decks.find(x=>x.id===id); if(!d) return;
+  if(S.decks.length<=1){ toast("Can't delete your only deck."); return; }
+  msg("Delete deck?", `Delete <b>${escapeHtml(d.name)}</b> (${d.cards.length} questions)? This can't be undone.`,
+    [{t:"Cancel", cls:"ghost", fn:closeMsg},
+     {t:"Delete", cls:"red", fn:()=>{
+        const wasActive = (S.activeDeckId===id);
+        S.decks = S.decks.filter(x=>x.id!==id);
+        if(wasActive){ S.activeDeckId = S.decks[0].id; syncActiveDeck(); resetBag(); }
+        save(); closeMsg(); renderDecks(); renderHub();
+        toast("Deck deleted.");
+     }}]);
+}
+// Add a freshly-imported deck and make it active.
+function addDeck(name, cards){
+  const d = { id:newDeckId(), name:String(name).trim().slice(0,60) || defaultDeckName(), cards };
+  S.decks.push(d); S.activeDeckId = d.id; syncActiveDeck(); resetBag(); save();
+  return d;
+}
+function defaultDeckName(){ return "Deck "+(S.decks.length+1); }
+function shuffleArr(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+
+/* Turn Quizlet "Export" text (term <sep> definition, one card per line) into
+   4-option questions: correct answer = the definition, 3 distractors drawn
+   from the set's other definitions. Returns {cards, pairs, enough}. */
+function parseQuizlet(text, tdSepKey, cardSepKey){
+  const TD = ({tab:'\t', dash:' - ', comma:','})[tdSepKey] || '\t';
+  const cardSep = ({nl:null, semi:';'})[cardSepKey]; // null => split on newlines
+  const rows = (cardSep ? text.split(cardSep) : text.split(/\r?\n/)).map(r=>r.trim()).filter(Boolean);
+  const pairs = [];
+  for(const r of rows){
+    const idx = r.indexOf(TD);
+    if(idx<0) continue;
+    const term = r.slice(0, idx).trim();
+    const def  = r.slice(idx + TD.length).trim();
+    if(term && def) pairs.push({ term, def });
+  }
+  const defs = pairs.map(p=>p.def);
+  const cards = [];
+  for(const p of pairs){
+    const pool = shuffleArr([...new Set(defs.filter(d=>d!==p.def))]).slice(0,3);
+    if(pool.length<3) continue;                 // need 3 distinct wrong answers
+    const opts = shuffleArr([p.def, ...pool]);
+    const card = { q:p.term, o:opts, a:opts.indexOf(p.def) };
+    if(validQ(card)) cards.push(card);
+  }
+  return { cards, pairs, enough: pairs.length>=4 };
 }
 
 /* ==========================================================================
@@ -834,7 +971,8 @@ function hydrateSave(p){
   if(typeof S.level!=="number") S.level=1;
   if(typeof S.xp!=="number") S.xp=0;
   if(typeof S.skillPoints!=="number") S.skillPoints=0;
-  deck = (p && p.deck && p.deck.length) ? p.deck : DEFAULT_DECK.slice();
+  // Deck library: migrate a legacy single deck (top-level blob `deck`) into S.decks.
+  ensureDeckLibrary(p && p.deck);
 }
 function load(){
   try{
@@ -842,7 +980,7 @@ function load(){
     if(raw){ hydrateSave(JSON.parse(raw)); return; }
   }catch(e){}
   S = freshState();
-  deck = DEFAULT_DECK.slice();
+  ensureDeckLibrary();
 }
 
 /* ==========================================================================
@@ -2105,40 +2243,38 @@ function buyUpgrade(key){
 /* ==========================================================================
    DECK IMPORT  (Base64 with DS- prefix)
    ========================================================================== */
+let importMode = 'json';
 function openImport(){
   document.getElementById('importText').value="";
+  document.getElementById('importName').value="";
   document.getElementById('importMsg').textContent="";
+  setImportMode('json');
   document.getElementById('importOverlay').classList.add('active');
-  updateDeckInfo();
 }
 function closeImport(){ document.getElementById('importOverlay').classList.remove('active'); }
+function setImportMode(mode){
+  importMode = mode;
+  document.querySelectorAll('.imp-mode').forEach(b=> b.classList.toggle('active', b.dataset.mode===mode));
+  document.getElementById('impJsonHelp').style.display    = mode==='json'    ? '' : 'none';
+  document.getElementById('impQuizletHelp').style.display = mode==='quizlet' ? '' : 'none';
+  document.getElementById('impQuizletOpts').style.display = mode==='quizlet' ? 'flex' : 'none';
+  document.getElementById('importText').placeholder = mode==='quizlet'
+    ? 'Paste your Quizlet Export here, e.g.\nphotosynthesis\tprocess plants use to make food\nmitochondria\tthe powerhouse of the cell'
+    : 'Paste JSON like:  [{"q":"...","o":["A","B","C","D"],"a":0}, ...]   — or a DS- code';
+}
 
 function validQ(x){ return x && typeof x.q==="string" && Array.isArray(x.o) && x.o.length===4 && Number.isInteger(x.a) && x.a>=0 && x.a<4; }
 
-/* Accepts EITHER raw JSON (recommended — reliable) OR a DS- Base64 code.
-   Falls back to per-question recovery so one bad entry can't wipe the deck. */
-function doImport(){
-  let raw = document.getElementById('importText').value.trim();
-  const msgEl = document.getElementById('importMsg');
-  if(!raw){ msgEl.innerHTML="<span style='color:var(--red)'>Paste your questions (JSON) or a DS- code first.</span>"; return; }
-
-  // 1) get the JSON text — decode Base64 only if it's a DS- code
+/* Parse raw JSON OR a DS- Base64 code into clean cards. Returns {cards, skipped, recovered}. */
+function parseJsonOrDs(raw, msgEl){
   let json;
   if(raw.startsWith("DS-")){
     try{ json = decodeB64Unicode(raw.slice(3).trim()); }
-    catch(e){ msgEl.innerHTML="<span style='color:var(--red)'>That DS- code is corrupted and can't be decoded.<br>Tip: ask the AI for <b>raw JSON</b> instead of Base64.</span>"; return; }
-  } else {
-    json = raw;  // raw JSON pasted directly
-  }
-
-  // 2) strip code-fences / stray control chars the AI sometimes adds
+    catch(e){ msgEl.innerHTML="<span style='color:var(--red)'>That DS- code is corrupted and can't be decoded.<br>Tip: ask the AI for <b>raw JSON</b> instead of Base64.</span>"; return null; }
+  } else { json = raw; }
   json = json.replace(/^```(?:json)?/i,"").replace(/```$/,"").trim();
-
-  // 3) strict parse first
   let arr = null;
   try{ const p = JSON.parse(json); if(Array.isArray(p)) arr = p; }catch(e){}
-
-  // 4) tolerant recovery: pull out individual {...} objects, skip broken ones
   let recovered = false;
   if(!arr){
     arr = [];
@@ -2146,29 +2282,65 @@ function doImport(){
     matches.forEach(m=>{ try{ const o=JSON.parse(m); arr.push(o); }catch(e){} });
     recovered = true;
   }
+  const cards = arr.filter(validQ);
+  return { cards, skipped: arr.length - cards.length, recovered };
+}
 
-  const clean = arr.filter(validQ);
-  if(clean.length===0){
-    msgEl.innerHTML = "<span style='color:var(--red)'>No valid questions found. Each needs <b>q</b>, exactly 4 <b>o</b> options, and an <b>a</b> index 0–3.</span>";
-    return;
+/* Build a brand-new deck from the pasted content and switch to it. */
+function doImport(){
+  const raw = document.getElementById('importText').value.trim();
+  const msgEl = document.getElementById('importMsg');
+  const name = (document.getElementById('importName').value||'').trim();
+  if(!raw){ msgEl.innerHTML="<span style='color:var(--red)'>Paste your questions first.</span>"; return; }
+
+  let cards, note='';
+  if(importMode==='quizlet'){
+    const tdSep = document.getElementById('qzTermSep').value;
+    const cardSep = document.getElementById('qzCardSep').value;
+    const res = parseQuizlet(raw, tdSep, cardSep);
+    if(!res.enough){ msgEl.innerHTML="<span style='color:var(--red)'>Need at least <b>4 cards</b> to build multiple-choice questions. Found "+res.pairs.length+".</span>"; return; }
+    if(res.cards.length===0){ msgEl.innerHTML="<span style='color:var(--red)'>Couldn't read any term/definition pairs. Check the separators above match your paste (Quizlet's default is a Tab).</span>"; return; }
+    cards = res.cards;
+    if(res.cards.length < res.pairs.length) note = `<br><span style="color:var(--gold)">${res.pairs.length-res.cards.length} card(s) skipped (needed more unique definitions for wrong answers).</span>`;
+  } else {
+    const res = parseJsonOrDs(raw, msgEl);
+    if(!res) return; // msg already set
+    if(res.cards.length===0){ msgEl.innerHTML="<span style='color:var(--red)'>No valid questions found. Each needs <b>q</b>, exactly 4 <b>o</b> options, and an <b>a</b> index 0–3.</span>"; return; }
+    cards = res.cards;
+    if(res.recovered || res.skipped>0) note = `<br><span style="color:var(--gold)">Note: ${res.skipped>0?res.skipped+" malformed entr"+(res.skipped!==1?"ies":"y")+" skipped. ":""}For best results use raw JSON, not a DS- code.</span>`;
   }
 
-  deck = clean; resetBag(); save(); updateDeckInfo();
-  const skipped = (arr.length - clean.length);
-  let note = `✔ Loaded ${clean.length} question${clean.length!==1?'s':''}!`;
-  if(recovered || skipped>0) note += `<br><span style="color:var(--gold)">Note: ${skipped>0?skipped+" malformed entr"+(skipped!==1?"ies":"y")+" skipped. ":""}Some data was corrupted — for best results use raw JSON, not a DS- code.</span>`;
-  msgEl.innerHTML = `<span style='color:var(--green)'>${note}</span>`;
-  toast("Deck loaded: "+clean.length+" questions");
-  setTimeout(()=>{ closeImport(); renderHub(); }, recovered||skipped>0 ? 2200 : 900);
-}
-function loadDefaultDeck(fromModal){
-  deck = DEFAULT_DECK.slice(); resetBag(); save();
-  if(fromModal){ document.getElementById('importMsg').innerHTML="<span style='color:var(--green)'>✔ Default deck loaded (10 questions).</span>"; updateDeckInfo(); toast("Default deck loaded"); }
-  renderHub();
+  const d = addDeck(name || defaultDeckName(), cards);
+  msgEl.innerHTML = `<span style='color:var(--green)'>✔ Created “${escapeHtml(d.name)}” with ${cards.length} question${cards.length!==1?'s':''}!${note}</span>`;
+  toast("Deck created: "+d.name);
+  setTimeout(()=>{ closeImport(); showScreen('decks'); renderDecks(); renderHub(); }, note ? 2000 : 900);
 }
 function updateDeckInfo(){
   const el=document.getElementById('deckInfo');
-  if(el) el.textContent = `Current deck: ${deck.length} question${deck.length!==1?'s':''}`;
+  const d = activeDeck();
+  if(el) el.textContent = d ? `Studying: ${d.name} · ${deck.length} question${deck.length!==1?'s':''}` : '';
+}
+
+/* ==========================================================================
+   DECKS SCREEN — switch / rename / delete decks, or create a new one.
+   ========================================================================== */
+function renderDecks(){
+  const el = document.getElementById('deckMgrList');
+  if(!el) return;
+  el.innerHTML = S.decks.map(d=>{
+    const active = d.id===S.activeDeckId;
+    return `<div class="deckrow${active?' active':''}">
+      <div class="deckrow-main">
+        <div class="deckrow-name">${active?'<span class="deck-badge">ACTIVE</span> ':''}${escapeHtml(d.name)}</div>
+        <div class="deckrow-sub">${d.cards.length} question${d.cards.length!==1?'s':''}</div>
+      </div>
+      <div class="deckrow-btns">
+        ${active ? '<span class="deckrow-using">✓ Studying</span>' : `<button class="btn gold sm" onclick="switchDeck('${d.id}')">Use</button>`}
+        <button class="btn ghost sm" onclick="renameDeckPrompt('${d.id}')">Rename</button>
+        <button class="btn ghost sm" onclick="deleteDeckConfirm('${d.id}')"${S.decks.length<=1?' disabled style="opacity:.4"':''}>Delete</button>
+      </div>
+    </div>`;
+  }).join("");
 }
 
 /* ==========================================================================
@@ -2393,7 +2565,7 @@ function closeMsg(){ document.getElementById('msgOverlay').classList.remove('act
 function confirmReset(){
   msg("Reset Everything?", "This permanently erases your gold, gear, upgrades, and progress. This cannot be undone.",
     [{t:"Cancel", cls:"ghost", fn:closeMsg},
-     {t:"Erase Save", cls:"red", fn:()=>{ localStorage.removeItem(SAVE_KEY); S=freshState(); deck=DEFAULT_DECK.slice(); resetBag(); save(); closeMsg(); renderHub(); toast("Save reset."); }}]);
+     {t:"Erase Save", cls:"red", fn:()=>{ localStorage.removeItem(SAVE_KEY); S=freshState(); ensureDeckLibrary(); resetBag(); save(); closeMsg(); renderHub(); toast("Save reset."); }}]);
 }
 
 /* ==========================================================================
@@ -2939,8 +3111,8 @@ function bootGame(){
       try{
         const { data } = await this.sb.from('saves').select('data').eq('user_id', this.session.user.id).maybeSingle();
         if(data && data.data && data.data.s){ hydrateSave(data.data); }
-        else { S = freshState(); deck = DEFAULT_DECK.slice(); }
-      }catch(e){ console.warn("loadCloud failed", e); S = freshState(); deck = DEFAULT_DECK.slice(); }
+        else { S = freshState(); ensureDeckLibrary(); }
+      }catch(e){ console.warn("loadCloud failed", e); S = freshState(); ensureDeckLibrary(); }
       try{ localStorage.setItem(SAVE_KEY, JSON.stringify({s:S, deck})); }catch(e){}
     },
 
