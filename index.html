@@ -2850,9 +2850,21 @@ function bootGame(){
 </script>
 
 <!-- ===================== ONLINE LAYER (accounts, cloud save, leaderboard, admin) ===================== -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Supabase client: served from our own (school-whitelisted) domain so a content
+     filter that blocks public CDNs can't break sign-in. Falls back to the CDN
+     only if the local copy is somehow missing. -->
+<script src="vendor/supabase.min.js"></script>
+<script>window.supabase||document.write('<scr'+'ipt src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"><\/scr'+'ipt>');</script>
 <script>
 (function(){
+  // Race a promise against a timer so a blocked/black-holed network request
+  // (e.g. a school filter silently dropping Supabase traffic) can never freeze boot.
+  function withTimeout(promise, ms, label){
+    return Promise.race([
+      Promise.resolve(promise),
+      new Promise((_,rej)=> setTimeout(()=> rej(new Error((label||'request')+' timed out')), ms))
+    ]);
+  }
   // ---- CONFIG: paste your Supabase project values here (both are safe to be public) ----
   const SUPA_URL  = "https://ldrdlmhvaswrlxrajxgp.supabase.co";
   const SUPA_ANON = "sb_publishable_SMwdealRgVx0n1jGf_1yyw_6ZpjMfuq";
@@ -2863,15 +2875,34 @@ function bootGame(){
 
     async init(){
       injectUI();
-      if(CONFIGURED && window.supabase){
-        try{
-          this.sb = window.supabase.createClient(SUPA_URL, SUPA_ANON);
-          const { data:{ session } } = await this.sb.auth.getSession();
-          if(session){ await this.enterOnline(session); return; }
-        }catch(e){ console.warn("Supabase init failed", e); }
-      }
+      // Show the gate IMMEDIATELY — before any network call — so the app is always
+      // usable even when a school content filter blocks Supabase, Google, or the CDN.
+      // (Previously we awaited getSession() first; if that request hangs, the gate
+      // never appeared and the whole page looked blank.)
       showGate(true);
-      if(!CONFIGURED){ setGateNote("Online isn't configured yet — Play Offline works."); }
+      if(!CONFIGURED){ setGateNote("Online isn't configured yet — Play Offline works."); return; }
+      if(!window.supabase){ setGateNote("Online features are blocked on this network — Play Offline still works."); return; }
+      try{
+        this.sb = window.supabase.createClient(SUPA_URL, SUPA_ANON);
+      }catch(e){
+        console.warn("Supabase init failed", e);
+        setGateNote("Online features are blocked on this network — Play Offline still works.");
+        return;
+      }
+      // Silently try to restore an existing session, but never let a blocked/hanging
+      // network freeze the page: each step is capped by a timeout.
+      try{
+        const res = await withTimeout(this.sb.auth.getSession(), 6000, 'getSession');
+        const session = res && res.data && res.data.session;
+        if(session){
+          setGateNote("Restoring your session…");
+          await withTimeout(this.enterOnline(session), 12000, 'enterOnline');
+        }
+      }catch(e){
+        console.warn("Session restore skipped:", e && e.message);
+        this.mode = null;
+        setGateNote("Couldn't reach the server — Play Offline works, or try Sign in.");
+      }
     },
 
     async signIn(){
